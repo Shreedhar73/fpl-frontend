@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import {
   getRecommendedAdvice,
   getRecommendedSquad,
@@ -6,6 +7,13 @@ import {
 } from '@/features/squad/api/squad.api';
 import { ErrorState } from '@/features/squad/components/error-state';
 import { SquadView } from '@/features/squad/components/squad-view';
+import type { ApiResponseMeta } from '@/lib/api/types';
+
+export const metadata: Metadata = {
+  title: 'Recommended squad',
+  description:
+    'The best legal 15 the optimizer can build from scratch under the full FPL ruleset.',
+};
 
 /**
  * The optimizer's own 15, through the same view as an imported squad.
@@ -19,19 +27,25 @@ import { SquadView } from '@/features/squad/components/squad-view';
 export default async function RecommendedSquadPage() {
   let squad: Squad;
   let advice: Advice;
+  let meta: ApiResponseMeta | null;
 
   try {
-    [squad, advice] = await Promise.all([
+    const [squadResult, adviceResult] = await Promise.all([
       getRecommendedSquad(),
       getRecommendedAdvice(),
     ]);
+    squad = squadResult.data;
+    advice = adviceResult.data;
+    // The advice envelope is the one that carries `dataAsOfGw` — it is the response with the model
+    // output in it.
+    meta = adviceResult.meta;
   } catch (err) {
     return (
-      <main className="mx-auto w-full max-w-3xl flex-1 px-6 py-16">
+      <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-12 sm:px-6">
         <ErrorState error={err} title="Could not build a recommended squad" />
       </main>
     );
   }
 
-  return <SquadView squad={squad} advice={advice} />;
+  return <SquadView squad={squad} advice={advice} meta={meta} />;
 }

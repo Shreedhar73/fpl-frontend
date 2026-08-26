@@ -1,4 +1,4 @@
-import type { ApiResponse } from './types';
+import type { ApiResponse, ApiResponseMeta } from './types';
 
 /**
  * The only place in the frontend that calls `fetch`. Everything else goes through a feature's
@@ -27,7 +27,24 @@ export interface ApiRequestOptions extends Omit<RequestInit, 'body'> {
   tags?: string[];
 }
 
+/**
+ * A response and the envelope's `meta` beside it. Anything rendering model output needs both: the
+ * numbers are derived, and `dataAsOfGw` is the only thing on screen that says which gameweek's data
+ * derived them. `apiFetch` returning `payload.data` alone is why nothing said so before B-009.
+ */
+export interface WithMeta<T> {
+  data: T;
+  meta: ApiResponseMeta | null;
+}
+
 export async function apiFetch<T>(path: string, options: ApiRequestOptions = {}): Promise<T> {
+  return (await apiFetchWithMeta<T>(path, options)).data;
+}
+
+export async function apiFetchWithMeta<T>(
+  path: string,
+  options: ApiRequestOptions = {},
+): Promise<WithMeta<T>> {
   const { body, revalidate, tags, headers, ...rest } = options;
 
   const res = await fetch(`${BASE_URL}/api${path}`, {
@@ -48,7 +65,7 @@ export async function apiFetch<T>(path: string, options: ApiRequestOptions = {})
     throw new ApiError(payload.message ?? res.statusText, payload.statusCode ?? res.status, payload.errorCode);
   }
 
-  return payload.data;
+  return { data: payload.data, meta: payload.meta };
 }
 
 /**

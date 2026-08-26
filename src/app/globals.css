@@ -1,8 +1,56 @@
 @import "tailwindcss";
 
+/*
+  The token layer. Every colour in the app comes from here — a component that hardcodes a hex or
+  reaches for a raw Tailwind palette class (`zinc-800`, `emerald-600`) is bypassing dark mode, since
+  the schemes differ by more than a lightness flip.
+
+  The four position hues are validated, not chosen by eye: run through the `dataviz` validator on
+  both surfaces with `--pairs all` on 2026-08-26.
+
+    light  #D55E00 #0072B2 #009E73 #CC79A7   — lightness band, chroma floor, normal-vision floor
+    dark   #D55E00 #3B93DB #0F9070 #C06A9A     and contrast all PASS; CVD separation WARN at ΔE 6.6
+                                                (deutan), which is legal only because position is
+                                                always spelled out in text beside the colour.
+
+  Re-run the validator before changing any of them, and never let a position be signalled by colour
+  alone. The command is in `fpl-orchestrator/docs/plans/008-frontend-design-system.md`.
+*/
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  color-scheme: light;
+
+  --canvas: #f4f6f8;
+  --surface: #ffffff;
+  --surface-2: #f2f4f7;
+  --surface-3: #e9edf1;
+  --line: #e1e6ec;
+  --line-strong: #c9d1da;
+
+  --ink: #0e141b;
+  --ink-2: #4a5563;
+  --ink-3: #717d8c;
+
+  /* The primary action is ink, not a brand hue: every hue in this app carries data meaning. */
+  --accent: #0e141b;
+  --accent-ink: #ffffff;
+  --focus: #0072b2;
+
+  --good: #0f7a54;
+  --warn: #8a5300;
+  --bad: #b02036;
+
+  --gkp: #d55e00;
+  --def: #0072b2;
+  --mid: #009e73;
+  --fwd: #cc79a7;
+
+  --turf-a: #1d7a4c;
+  --turf-b: #196b43;
+  --turf-line: rgb(255 255 255 / 0.28);
+
+  --shadow-card: 0 1px 2px rgb(14 20 27 / 0.05), 0 1px 3px rgb(14 20 27 / 0.06);
+  --shadow-raised: 0 6px 16px -6px rgb(14 20 27 / 0.18), 0 2px 4px rgb(14 20 27 / 0.06);
 
   /* System stacks, not next/font/google: Next fetches Google Fonts at build and dev time, and a
      machine that cannot reach fonts.gstatic.com gets a 500 on every page. */
@@ -13,22 +61,138 @@
     ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
 }
 
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+
+    --canvas: #0c1116;
+    --surface: #141a21;
+    --surface-2: #1b222b;
+    --surface-3: #232b35;
+    --line: #262f3a;
+    --line-strong: #3a4553;
+
+    --ink: #eef2f6;
+    --ink-2: #a7b2c0;
+    --ink-3: #7d8896;
+
+    --accent: #eef2f6;
+    --accent-ink: #0c1116;
+    --focus: #6cb6e8;
+
+    --good: #33b184;
+    --warn: #d09a3a;
+    --bad: #e26a7f;
+
+    --gkp: #d55e00;
+    --def: #3b93db;
+    --mid: #0f9070;
+    --fwd: #c06a9a;
+
+    --turf-a: #16532f;
+    --turf-b: #12452a;
+    --turf-line: rgb(255 255 255 / 0.16);
+
+    --shadow-card: 0 1px 2px rgb(0 0 0 / 0.4);
+    --shadow-raised: 0 8px 24px -8px rgb(0 0 0 / 0.6);
+  }
+}
+
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+
+  --color-accent: var(--accent);
+  --color-accent-ink: var(--accent-ink);
+  --color-focus: var(--focus);
+
+  --color-good: var(--good);
+  --color-warn: var(--warn);
+  --color-bad: var(--bad);
+
+  --color-gkp: var(--gkp);
+  --color-def: var(--def);
+  --color-mid: var(--mid);
+  --color-fwd: var(--fwd);
+
   --font-sans: var(--font-app-sans);
   --font-mono: var(--font-app-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+body {
+  background: var(--canvas);
+  color: var(--ink);
+  font-family: var(--font-app-sans);
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: var(--font-app-sans);
+/* One focus treatment everywhere, including the keyboard path through the builder's 60-row table. */
+:where(a, button, input, select, summary, [tabindex]):focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/*
+  The pitch. Markings are drawn rather than imaged — an SVG or PNG here would be a network request
+  for something four gradients already say, and gradients recolour themselves in dark mode.
+*/
+.pitch {
+  background:
+    linear-gradient(rgb(0 0 0 / 0.06), rgb(0 0 0 / 0.06)),
+    repeating-linear-gradient(
+      to bottom,
+      var(--turf-a) 0 7.5%,
+      var(--turf-b) 7.5% 15%
+    );
+}
+
+.pitch-markings::before,
+.pitch-markings::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 2px solid var(--turf-line);
+  border-top: 0;
+  pointer-events: none;
+}
+
+/* The penalty box and, inside it, the six-yard box — both hung off the top edge. */
+.pitch-markings::before {
+  top: 0;
+  width: min(58%, 24rem);
+  height: 4.5rem;
+  border-radius: 0 0 4px 4px;
+}
+
+.pitch-markings::after {
+  top: 0;
+  width: min(30%, 12rem);
+  height: 2.25rem;
+  border-radius: 0 0 4px 4px;
+}
+
+/* A bar whose width is a share of a maximum. Kept in CSS so the value can be an inline custom
+   property and the component stays free of computed class names. */
+.bar-fill {
+  width: calc(var(--fill) * 100%);
+  min-width: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

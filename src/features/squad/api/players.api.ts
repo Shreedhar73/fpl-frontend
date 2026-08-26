@@ -1,4 +1,4 @@
-import { apiFetch } from '@/lib/api/client';
+import { apiFetch, apiFetchWithMeta, type WithMeta } from '@/lib/api/client';
 import type { Schema } from '@/lib/api/types';
 import type { Advice } from './squad.api';
 
@@ -7,8 +7,8 @@ export type PlayerListItem = Schema<'PlayerListItemDto'>;
 export type SquadValidation = Schema<'SquadValidationDto'>;
 
 /** Every player, fetched on the server and handed to the builder as a prop. */
-export async function getPlayers(): Promise<PlayerList> {
-  return apiFetch<PlayerList>('/players', { cache: 'no-store' });
+export async function getPlayers(): Promise<WithMeta<PlayerList>> {
+  return apiFetchWithMeta<PlayerList>('/players', { cache: 'no-store' });
 }
 
 /**
@@ -24,8 +24,10 @@ export async function validateSquad(
   });
 }
 
-export async function adviseBuiltSquad(playerIds: string[]): Promise<Advice> {
-  return apiFetch<Advice>('/insights/advice', {
+export async function adviseBuiltSquad(
+  playerIds: string[],
+): Promise<WithMeta<Advice>> {
+  return apiFetchWithMeta<Advice>('/insights/advice', {
     method: 'POST',
     body: { playerIds },
   });

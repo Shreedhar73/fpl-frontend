@@ -1,4 +1,4 @@
-import { apiFetch, ApiError } from '@/lib/api/client';
+import { apiFetchWithMeta, ApiError, type WithMeta } from '@/lib/api/client';
 import type { Schema } from '@/lib/api/types';
 
 /**
@@ -15,41 +15,52 @@ export type SquadPick = Schema<'SquadPickDto'>;
 export type Advice = Schema<'AdviceDto'>;
 export type AdvicePlayer = Schema<'AdvicePlayerDto'>;
 export type Comparison = Schema<'ComparisonDto'>;
+export type SquadDifference = Schema<'SquadDifferenceDto'>;
+
+/**
+ * These return the envelope's `meta` alongside the data, and the views render it. Every number in
+ * this app is derived, and `meta.dataAsOfGw` is the only thing that says which gameweek's data
+ * derived it — the frontend contract requires it on screen wherever model output is.
+ */
 
 /** A squad's picks are meaningless out of slot order — the bench order is inside them. */
-function inSlotOrder(squad: Squad): Squad {
-  return { ...squad, picks: [...squad.picks].sort((a, b) => a.slot - b.slot) };
+function inSlotOrder({ data, meta }: WithMeta<Squad>): WithMeta<Squad> {
+  return {
+    data: { ...data, picks: [...data.picks].sort((a, b) => a.slot - b.slot) },
+    meta,
+  };
 }
 
-export async function importSquad(managerId: number): Promise<Squad> {
-  const squad = await apiFetch<Squad>('/squad/import', {
-    method: 'POST',
-    body: { managerId },
-    cache: 'no-store',
-  });
-  return inSlotOrder(squad);
-}
-
-export async function getSquad(managerId: number): Promise<Squad> {
+export async function importSquad(managerId: number): Promise<WithMeta<Squad>> {
   return inSlotOrder(
-    await apiFetch<Squad>(`/squad/${managerId}`, { cache: 'no-store' }),
+    await apiFetchWithMeta<Squad>('/squad/import', {
+      method: 'POST',
+      body: { managerId },
+      cache: 'no-store',
+    }),
   );
 }
 
-export async function getRecommendedSquad(): Promise<Squad> {
+export async function getSquad(managerId: number): Promise<WithMeta<Squad>> {
   return inSlotOrder(
-    await apiFetch<Squad>('/squad/recommended', { cache: 'no-store' }),
+    await apiFetchWithMeta<Squad>(`/squad/${managerId}`, { cache: 'no-store' }),
   );
 }
 
-export async function getAdvice(managerId: number): Promise<Advice> {
-  return apiFetch<Advice>(`/insights/advice/${managerId}`, {
+export async function getRecommendedSquad(): Promise<WithMeta<Squad>> {
+  return inSlotOrder(
+    await apiFetchWithMeta<Squad>('/squad/recommended', { cache: 'no-store' }),
+  );
+}
+
+export async function getAdvice(managerId: number): Promise<WithMeta<Advice>> {
+  return apiFetchWithMeta<Advice>(`/insights/advice/${managerId}`, {
     cache: 'no-store',
   });
 }
 
-export async function getRecommendedAdvice(): Promise<Advice> {
-  return apiFetch<Advice>('/insights/advice/recommended', {
+export async function getRecommendedAdvice(): Promise<WithMeta<Advice>> {
+  return apiFetchWithMeta<Advice>('/insights/advice/recommended', {
     cache: 'no-store',
   });
 }
@@ -73,11 +84,15 @@ export const ERROR_MESSAGES: Record<string, string> = {
 
 export function messageFor(err: unknown): string {
   if (err instanceof ApiError) {
-    return (
-      ERROR_MESSAGES[err.errorCode ?? ''] ??
-      err.message ??
-      'Something went wrong.'
-    );
+    const known = ERROR_MESSAGES[err.errorCode ?? ''];
+    if (known) return known;
+    // A 400 with no error code is a DTO validator talking, and it names the field rather than the
+    // thing the reader typed — "managerId must not be greater than 100000000". Say it in their
+    // terms and keep the original as the detail.
+    if (err.statusCode === 400) {
+      return `That is not a team id FPL uses — it is the number in your team's URL on the official site. (${err.message})`;
+    }
+    return err.message ?? 'Something went wrong.';
   }
   // A fetch that never reached the backend at all — it is not running, or the URL is wrong.
   return 'Could not reach the backend. Is it running on :5001?';
