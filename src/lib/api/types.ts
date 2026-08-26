@@ -20,3 +20,16 @@ export interface ApiResponse<T> {
   data: T;
   meta: ApiResponseMeta | null;
 }
+
+import type { components } from './types.gen';
+
+export type { paths, components, operations } from './types.gen';
+
+/**
+ * Shorthand for a generated schema, so a feature writes `Schema<'SquadDto'>` rather than the
+ * three-level index. Regenerate with `pnpm generate:api` after any backend contract change: a
+ * schema that no longer exists upstream becomes a type error here, which is the entire point of
+ * generating rather than hand-writing.
+ */
+export type Schema<K extends keyof components['schemas']> =
+  components['schemas'][K];

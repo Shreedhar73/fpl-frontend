@@ -51,7 +51,11 @@ export async function apiFetch<T>(path: string, options: ApiRequestOptions = {})
   return payload.data;
 }
 
-/** Health is outside the /api prefix and outside the envelope, by design — see the backend. */
+/**
+ * Health is outside the `/api` prefix but **inside** the envelope like everything else — the
+ * interceptor is global. Verified against the running backend 2026-08-26. Only the status code is
+ * read here, so the body shape does not matter.
+ */
 export async function apiHealth(): Promise<boolean> {
   try {
     const res = await fetch(`${BASE_URL}/health`, { cache: 'no-store' });

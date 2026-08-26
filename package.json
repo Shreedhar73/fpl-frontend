@@ -7,8 +7,8 @@
     "build": "next build",
     "start": "next start -p 4000",
     "lint": "eslint",
-    "typecheck": "tsc --noEmit",
-    "generate:api": "echo 'TODO: openapi-typescript against http://localhost:5001/api-docs-json > src/lib/api/types.gen.ts' && exit 1"
+    "typecheck": "next typegen && tsc --noEmit",
+    "generate:api": "openapi-typescript ../fpl-backend/openapi.json -o src/lib/api/types.gen.ts"
   },
   "dependencies": {
     "next": "16.3.3",
@@ -22,6 +22,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.3.3",
+    "openapi-typescript": "^7.13.0",
     "tailwindcss": "^4",
     "typescript": "^5"
   },
