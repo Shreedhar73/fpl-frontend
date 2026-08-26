@@ -21,6 +21,106 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/squad/import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Import a squad from a public FPL manager id.
+         * @description Fetches the manager's last-locked picks from the public API and persists them. No credential is involved and none is accepted (D-013): the manager id is an input, not an identity. The pre-deadline unsaved squad is not public and is not returned. This is the one endpoint that calls upstream while you wait, so it carries a short timeout; a second call for the same manager and gameweek is served from GET /api/squad/{managerId}.
+         */
+        post: operations["SquadController_import"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/squad/recommended": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The optimizer's own best legal 15, in the same shape as an imported squad.
+         * @description Solved fresh, and deliberately not persisted to squads — it belongs to no manager, and every solve is already recorded in optimizer_runs.
+         */
+        get: operations["SquadController_recommended"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/squad/{managerId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * A previously imported squad, from our own store.
+         * @description Reads Postgres. Makes no upstream call.
+         */
+        get: operations["SquadController_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/insights/advice/recommended": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Advice for the optimizer's own squad.
+         * @description Mostly useful as a check on the comparison: a squad measured against itself must report a gap of zero.
+         */
+        get: operations["InsightsController_adviceForRecommended"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/insights/advice/{managerId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Advice for a previously imported squad.
+         * @description Captain, vice, bench order and the gap against the best legal 15, with the model's per-term reasoning on every player. Does NOT recommend transfers or chips — see `notAdvisedOn` in the response, and B-008.
+         */
+        get: operations["InsightsController_adviceForManager"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -50,6 +150,140 @@ export interface components {
             service: string;
             /** @description Whole seconds since this process started. */
             uptimeSeconds: number;
+        };
+        SquadPickDto: {
+            /** @description Our internal player id (cuid), not the FPL element id. */
+            playerId: string;
+            /** @description The player's FPL element id. */
+            fplId: number;
+            /** @example Haaland */
+            webName: string;
+            /** @enum {string} */
+            position: "GKP" | "DEF" | "MID" | "FWD";
+            /** @example MCI */
+            teamShortName: string;
+            /** @description Market price in tenths of a million. 55 is £5.5m. */
+            nowCost: number;
+            /** @description What a sale would return, in tenths. NULL for an imported squad and that is correct: no public endpoint carries a purchase or selling price. Filled by the transfer planner (B-008). */
+            sellValue: number | null;
+            /** @description 1-11 starting XI, 12-15 bench in substitution order. Called `position` upstream, renamed here because a pick already has a position in the GKP/DEF/MID/FWD sense and one field cannot be both. */
+            slot: number;
+            /** @description 1 normally, 2 for the captain, 3 under the triple-captain chip. */
+            multiplier: number;
+            isCaptain: boolean;
+            isViceCaptain: boolean;
+        };
+        SquadDto: {
+            /** @description The FPL manager id this squad was imported from. NULL for the recommended squad, which belongs to nobody. */
+            managerId: number | null;
+            /** @description The manager's display name, when the squad came from an import. */
+            managerName: string | null;
+            /** @description The gameweek this squad is the picks for. */
+            gameweekId: number;
+            /** @description Money not spent, in tenths of a million. */
+            bank: number;
+            /** @description Squad value excluding the bank, in tenths of a million. */
+            teamValue: number;
+            /** @description The chip active in this gameweek, e.g. bboost or 3xc. Null when none. */
+            activeChip: string | null;
+            /**
+             * @description Where this squad came from. The advice is identical either way.
+             * @enum {string}
+             */
+            source: "import" | "recommended";
+            picks: components["schemas"]["SquadPickDto"][];
+        };
+        ImportSquadDto: {
+            /**
+             * @description A public FPL manager id — the number in a manager's /entry/<id>/ URL on the official site.
+             * @example 1
+             */
+            managerId: number;
+        };
+        EvidenceDto: {
+            /** @description Per-term breakdown of the next gameweek's expected points: appearance, goals, assists, cs, conceded, defcon, saves, bonus. The model's own reasoning, not a rationalisation. */
+            components: {
+                [key: string]: number;
+            };
+            /** @description Expected minutes in the next gameweek. */
+            expectedMinutes: number;
+            /** @description P(the player features at all). The term that dominates every other one — a 9-point forward who might not start is worth less than a 4-point one who certainly will. */
+            playProbability: number;
+        };
+        AdvicePlayerDto: {
+            playerId: string;
+            fplId: number;
+            webName: string;
+            /** @enum {string} */
+            position: "GKP" | "DEF" | "MID" | "FWD";
+            teamShortName: string;
+            /** @description Market price in tenths of a million. */
+            nowCost: number;
+            /**
+             * @description What this player should do, not what the manager currently has them doing.
+             * @enum {string}
+             */
+            role: "captain" | "vice" | "starter" | "bench";
+            /** @description 1-4 for a bench player, in substitution order; null for a starter. Order is a real decision: auto-subs walk the bench in this order and the first eligible player comes on. */
+            benchOrder: number | null;
+            /** @description Expected points for the next gameweek alone. */
+            epNextGw: number;
+            /** @description Expected points over the horizon, decayed — the number the optimizer actually maximises. */
+            epHorizon: number;
+            /** @description Null when the model has no projection for this player in the next gameweek. */
+            evidence: components["schemas"]["EvidenceDto"] | null;
+        };
+        SquadDifferenceDto: {
+            playerId: string;
+            webName: string;
+            /** @enum {string} */
+            position: "GKP" | "DEF" | "MID" | "FWD";
+            teamShortName: string;
+            /** @description Market price in tenths of a million. */
+            nowCost: number;
+            /** @description Expected points over the horizon. */
+            epHorizon: number;
+        };
+        ComparisonDto: {
+            /** @description Horizon EP summed over this squad's 15. */
+            squadHorizonEp: number;
+            /** @description Horizon EP summed over the optimal 15. */
+            optimalHorizonEp: number;
+            /** @description optimalHorizonEp − squadHorizonEp. Never negative: the optimal squad is optimal, so a negative gap would mean the comparison is broken, and a test asserts it cannot happen. */
+            horizonGap: number;
+            /** @description Next-gameweek EP of the best XI from this squad, captain counted twice — what the manager should actually score if the model is right. */
+            xiNextGwEp: number;
+            /** @description The same for the optimal squad. */
+            optimalXiNextGwEp: number;
+            /** @description optimalXiNextGwEp − xiNextGwEp. */
+            xiNextGwGap: number;
+            /** @description The formation the best XI from this squad plays. */
+            formation: string;
+            /** @description The optimal squad's formation. */
+            optimalFormation: string;
+            /** @description In the optimal 15 and not in this squad. **Not a transfer recommendation** — a transfer costs money and possibly 4 points, and deciding whether one is worth it is B-008. This is the set difference and nothing more. */
+            optimalHasThatYouDoNot: components["schemas"]["SquadDifferenceDto"][];
+            /** @description In this squad and not in the optimal 15. Same caveat. */
+            youHaveThatOptimalDoesNot: components["schemas"]["SquadDifferenceDto"][];
+        };
+        AdviceDto: {
+            /** @description The manager this advice is for. Null for the recommended squad. */
+            managerId: number | null;
+            /** @description The gameweek the advice is for — the next one. */
+            gameweekId: number;
+            /** @description Every gameweek in the horizon the epHorizon numbers cover. */
+            horizonGameweekIds: number[];
+            /** @description Which projection model produced these numbers. */
+            modelVersion: string;
+            /** @description Who to captain: the highest-EP player in the best XI. Null for an empty squad. */
+            captain: components["schemas"]["AdvicePlayerDto"] | null;
+            /** @description The fallback. */
+            viceCaptain: components["schemas"]["AdvicePlayerDto"] | null;
+            /** @description All 15, each with the role the model would give it and its evidence. */
+            players: components["schemas"]["AdvicePlayerDto"][];
+            comparison: components["schemas"]["ComparisonDto"];
+            /** @description What this advice deliberately does not answer, in plain language, so the gap is visible in the payload rather than only in a plan file. */
+            notAdvisedOn: string[];
         };
     };
     responses: never;
@@ -81,6 +315,223 @@ export interface operations {
                         success?: true;
                         /** @enum {string|null} */
                         errorCode?: null;
+                    };
+                };
+            };
+        };
+    };
+    SquadController_import: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ImportSquadDto"];
+            };
+        };
+        responses: {
+            /** @description The imported squad, now persisted. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiEnvelopeDto"] & {
+                        data: components["schemas"]["SquadDto"];
+                        /** @enum {boolean} */
+                        success?: true;
+                        /** @enum {string|null} */
+                        errorCode?: null;
+                    };
+                };
+            };
+            /** @description No such manager id. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiEnvelopeDto"] & {
+                        data: null | null;
+                        /** @enum {boolean} */
+                        success?: false;
+                        /** @enum {string} */
+                        errorCode?: "MANAGER_NOT_FOUND";
+                    };
+                };
+            };
+            /**
+             * @description The squad contains a player this app has not synced.
+             *
+             *     The manager exists but has no readable picks yet — picks become public after a deadline.
+             */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiEnvelopeDto"] & {
+                        data: null | null;
+                        /** @enum {boolean} */
+                        success?: false;
+                        /** @enum {string} */
+                        errorCode?: "SQUAD_NOT_AVAILABLE_YET";
+                    };
+                };
+            };
+            /** @description The official API timed out or failed. Not the manager id's fault. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiEnvelopeDto"] & {
+                        data: null | null;
+                        /** @enum {boolean} */
+                        success?: false;
+                        /** @enum {string} */
+                        errorCode?: "FPL_UPSTREAM_UNAVAILABLE";
+                    };
+                };
+            };
+        };
+    };
+    SquadController_recommended: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The recommended squad. managerId is null. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiEnvelopeDto"] & {
+                        data: components["schemas"]["SquadDto"];
+                        /** @enum {boolean} */
+                        success?: true;
+                        /** @enum {string|null} */
+                        errorCode?: null;
+                    };
+                };
+            };
+        };
+    };
+    SquadController_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                managerId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The stored squad. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiEnvelopeDto"] & {
+                        data: components["schemas"]["SquadDto"];
+                        /** @enum {boolean} */
+                        success?: true;
+                        /** @enum {string|null} */
+                        errorCode?: null;
+                    };
+                };
+            };
+            /** @description This manager has never been imported. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiEnvelopeDto"] & {
+                        data: null | null;
+                        /** @enum {boolean} */
+                        success?: false;
+                        /** @enum {string} */
+                        errorCode?: "SQUAD_NOT_IMPORTED";
+                    };
+                };
+            };
+        };
+    };
+    InsightsController_adviceForRecommended: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The advice. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiEnvelopeDto"] & {
+                        data: components["schemas"]["AdviceDto"];
+                        /** @enum {boolean} */
+                        success?: true;
+                        /** @enum {string|null} */
+                        errorCode?: null;
+                    };
+                };
+            };
+        };
+    };
+    InsightsController_adviceForManager: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                managerId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The advice. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiEnvelopeDto"] & {
+                        data: components["schemas"]["AdviceDto"];
+                        /** @enum {boolean} */
+                        success?: true;
+                        /** @enum {string|null} */
+                        errorCode?: null;
+                    };
+                };
+            };
+            /** @description Import the squad first: POST /api/squad/import. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiEnvelopeDto"] & {
+                        data: null | null;
+                        /** @enum {boolean} */
+                        success?: false;
+                        /** @enum {string} */
+                        errorCode?: "SQUAD_NOT_IMPORTED";
                     };
                 };
             };
