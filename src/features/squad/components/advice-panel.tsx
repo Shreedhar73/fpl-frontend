@@ -218,11 +218,13 @@ export function AdvicePanel({ advice }: { advice: Advice }) {
       <div className="overflow-x-auto">
         <table className="w-full text-left">
           <thead>
+            {/* The header padding must match the cells' — without pr-3 the three right-hand
+                headings butt together and read as one word. */}
             <tr className="text-[11px] uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-              <th className="pb-1 font-medium">Player</th>
-              <th className="pb-1 font-medium">Role</th>
-              <th className="pb-1 text-right font-medium">GW</th>
-              <th className="pb-1 text-right font-medium">Horizon</th>
+              <th className="pb-1 pr-3 font-medium">Player</th>
+              <th className="pb-1 pr-3 font-medium">Role</th>
+              <th className="pb-1 pr-3 text-right font-medium">GW</th>
+              <th className="pb-1 pr-3 text-right font-medium">Horizon</th>
               <th className="pb-1 font-medium">Why</th>
             </tr>
           </thead>

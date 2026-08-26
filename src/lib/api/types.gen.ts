@@ -41,6 +41,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/squad/validate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Check whether a set of players is a legal squad.
+         * @description Returns EVERY broken rule, not just the first — a builder that reports one violation at a time makes the user play twenty questions with the form. Prices, positions and clubs are read from our own store, so the numbers cannot be supplied by the caller, and every limit comes from scoring_config rather than a constant.
+         */
+        post: operations["SquadController_validate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/squad/recommended": {
         parameters: {
             query?: never;
@@ -81,6 +101,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/insights/advice": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Advice for a squad built by hand.
+         * @description The squad is validated first and refused if illegal: a captain and a bench for a team that cannot be fielded would read as encouragement.
+         */
+        post: operations["InsightsController_adviceForBuilt"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/insights/advice/recommended": {
         parameters: {
             query?: never;
@@ -113,6 +153,26 @@ export interface paths {
          * @description Captain, vice, bench order and the gap against the best legal 15, with the model's per-term reasoning on every player. Does NOT recommend transfers or chips — see `notAdvisedOn` in the response, and B-008.
          */
         get: operations["InsightsController_adviceForManager"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/players": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Every player in the game, with our expected points where we have them.
+         * @description Served whole rather than paged: the row count is bounded by the game itself, and a picker filters across all of it at once. Expected points are null, not zero, for a player the model has not projected.
+         */
+        get: operations["PlayersController_list"];
         put?: never;
         post?: never;
         delete?: never;
@@ -187,10 +247,10 @@ export interface components {
             /** @description The chip active in this gameweek, e.g. bboost or 3xc. Null when none. */
             activeChip: string | null;
             /**
-             * @description Where this squad came from. The advice is identical either way.
+             * @description Which of the three ways this squad arrived (D-013). The advice is identical for all of them — that is the point of one shape.
              * @enum {string}
              */
-            source: "import" | "recommended";
+            source: "import" | "recommended" | "built";
             picks: components["schemas"]["SquadPickDto"][];
         };
         ImportSquadDto: {
@@ -199,6 +259,33 @@ export interface components {
              * @example 1
              */
             managerId: number;
+        };
+        ViolationDto: {
+            /** @enum {string} */
+            code: "SQUAD_SIZE" | "POSITION_QUOTA" | "BUDGET_EXCEEDED" | "CLUB_LIMIT" | "DUPLICATE_PLAYER" | "NO_LEGAL_FORMATION";
+            /** @description Written for a person, not a log. */
+            message: string;
+        };
+        SquadValidationDto: {
+            legal: boolean;
+            /** @description EVERY broken rule, not just the first. A builder that reports one violation at a time makes the user play twenty questions with the form. */
+            violations: components["schemas"]["ViolationDto"][];
+            /** @description Total cost in tenths of a million. */
+            totalCost: number;
+            /** @description Budget minus cost, in tenths. Negative means over budget. */
+            bank: number;
+            /** @description How many of each position, against the quota. */
+            positionCounts: {
+                [key: string]: number;
+            };
+            /** @description How many from each club, against the 3-per-club limit. */
+            clubCounts: {
+                [key: string]: number;
+            };
+        };
+        ValidateSquadDto: {
+            /** @description Our internal player ids (cuid). Order does not matter here. */
+            playerIds: string[];
         };
         EvidenceDto: {
             /** @description Per-term breakdown of the next gameweek's expected points: appearance, goals, assists, cs, conceded, defcon, saves, bonus. The model's own reasoning, not a rationalisation. */
@@ -284,6 +371,39 @@ export interface components {
             comparison: components["schemas"]["ComparisonDto"];
             /** @description What this advice deliberately does not answer, in plain language, so the gap is visible in the payload rather than only in a plan file. */
             notAdvisedOn: string[];
+        };
+        AdviceRequestDto: {
+            /** @description Our internal player ids (cuid) for the 15. */
+            playerIds: string[];
+        };
+        PlayerListItemDto: {
+            /** @description Our internal id (cuid) — what the squad endpoints take. */
+            playerId: string;
+            fplId: number;
+            /** @example Haaland */
+            webName: string;
+            /** @enum {string} */
+            position: "GKP" | "DEF" | "MID" | "FWD";
+            /** @example MCI */
+            teamShortName: string;
+            /** @description Market price in tenths of a million. */
+            nowCost: number;
+            /** @description a=available d=doubtful i=injured s=suspended u=unavailable n=not in squad. Only "a" is safe to start. */
+            status: string;
+            /** @description The injury or availability note, when there is one. */
+            news: string | null;
+            /** @description Our expected points for the next gameweek. Null when the model has not projected this player — a null is not a zero, and the UI must not render it as one. */
+            epNextGw: number | null;
+            /** @description P(features at all) next gameweek. The term that dominates every other one. */
+            playProbability: number | null;
+        };
+        PlayerListDto: {
+            /** @description Which gameweek the expected points are for. Null when nothing has been projected yet. */
+            gameweekId: number | null;
+            modelVersion: string | null;
+            /** @description Every player in the game. The list is bounded by the game itself — 612 in 2025/26 — so it is served whole rather than paged: a picker needs to filter across all of them at once. */
+            count: number;
+            players: components["schemas"]["PlayerListItemDto"][];
         };
     };
     responses: never;
@@ -399,6 +519,51 @@ export interface operations {
             };
         };
     };
+    SquadController_validate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ValidateSquadDto"];
+            };
+        };
+        responses: {
+            /** @description The verdict, with the counts behind it. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiEnvelopeDto"] & {
+                        data: components["schemas"]["SquadValidationDto"];
+                        /** @enum {boolean} */
+                        success?: true;
+                        /** @enum {string|null} */
+                        errorCode?: null;
+                    };
+                };
+            };
+            /** @description One of those player ids does not exist. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiEnvelopeDto"] & {
+                        data: null | null;
+                        /** @enum {boolean} */
+                        success?: false;
+                        /** @enum {string} */
+                        errorCode?: "UNKNOWN_PLAYER";
+                    };
+                };
+            };
+        };
+    };
     SquadController_recommended: {
         parameters: {
             query?: never;
@@ -468,6 +633,66 @@ export interface operations {
             };
         };
     };
+    InsightsController_adviceForBuilt: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdviceRequestDto"];
+            };
+        };
+        responses: {
+            /** @description The advice. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiEnvelopeDto"] & {
+                        data: components["schemas"]["AdviceDto"];
+                        /** @enum {boolean} */
+                        success?: true;
+                        /** @enum {string|null} */
+                        errorCode?: null;
+                    };
+                };
+            };
+            /** @description That squad breaks at least one rule — the message lists every one. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiEnvelopeDto"] & {
+                        data: null | null;
+                        /** @enum {boolean} */
+                        success?: false;
+                        /** @enum {string} */
+                        errorCode?: "SQUAD_ILLEGAL";
+                    };
+                };
+            };
+            /** @description One of those player ids does not exist. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiEnvelopeDto"] & {
+                        data: null | null;
+                        /** @enum {boolean} */
+                        success?: false;
+                        /** @enum {string} */
+                        errorCode?: "UNKNOWN_PLAYER";
+                    };
+                };
+            };
+        };
+    };
     InsightsController_adviceForRecommended: {
         parameters: {
             query?: never;
@@ -532,6 +757,32 @@ export interface operations {
                         success?: false;
                         /** @enum {string} */
                         errorCode?: "SQUAD_NOT_IMPORTED";
+                    };
+                };
+            };
+        };
+    };
+    PlayersController_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The player universe. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiEnvelopeDto"] & {
+                        data: components["schemas"]["PlayerListDto"];
+                        /** @enum {boolean} */
+                        success?: true;
+                        /** @enum {string|null} */
+                        errorCode?: null;
                     };
                 };
             };
