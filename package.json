@@ -3,9 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev -p 5000",
+    "dev": "next dev -p 4000",
     "build": "next build",
-    "start": "next start -p 5000",
+    "start": "next start -p 4000",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "generate:api": "echo 'TODO: openapi-typescript against http://localhost:5001/api-docs-json > src/lib/api/types.gen.ts' && exit 1"

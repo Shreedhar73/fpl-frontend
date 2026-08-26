@@ -1,9 +1,9 @@
 # fpl-frontend
 
 Next.js 16 App Router UI for the FPL AI manager. A typed shell over the NestJS backend in
-`../fpl-backend` (:5001), which owns all data and every business rule. Runs on **:5000**.
+`../fpl-backend` (:5001), which owns all data and every business rule. Runs on **:4000**.
 
-TypeScript, Tailwind v4, `@/` resolves to `src/`. `pnpm dev` serves on :5000.
+TypeScript, Tailwind v4, `@/` resolves to `src/`. `pnpm dev` serves on :4000.
 
 ## Non-obvious constraints
 
@@ -27,9 +27,12 @@ Things a fresh read of the code will not tell you, and that are expensive to get
   derived numbers, and a stale projection presented as live is its worst failure mode.
 - **Deadlines arrive as UTC.** Render in the user's local zone with the zone named. A deadline shown
   in the wrong zone is the one bug here that costs the user actual points.
-- **Port 5000 is contested on macOS.** AirPlay Receiver binds it and the dev server will not start —
-  System Settings → General → AirDrop & Handoff → AirPlay Receiver → Off. The error Next prints does
-  not say this.
+- **The port is 4000, and it is chosen, not incidental.** 5000 was the original choice and macOS
+  AirPlay Receiver binds it by default, so the dev server never started. The port of record is
+  `ports["fpl-frontend"]` in `../fpl-orchestrator/orchestration/repos.json`; `package.json` must
+  agree with it. If a dev server ever fails with `EADDRINUSE`, check who holds the port
+  (`lsof -nP -i :4000`) before assuming an application error — the message Next prints does not name
+  the holder.
 - **Per-route JS budget is 150 KB gzipped.** A charting library in the initial bundle blows it alone;
   render charts on the server or load them lazily.
 
@@ -65,3 +68,13 @@ Plan file in `../fpl-orchestrator/docs/plans/` → branch → implement → `pnp
 
 **`AGENTS.md` is the real file; `CLAUDE.md` is a symlink to it.** Same inode, so they cannot drift.
 Edit `AGENTS.md`.
+
+<!-- BEGIN:nextjs-agent-rules -->
+
+# This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
+<!-- END:nextjs-agent-rules -->
