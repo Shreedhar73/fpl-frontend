@@ -150,9 +150,29 @@ export interface paths {
         };
         /**
          * Advice for a previously imported squad.
-         * @description Captain, vice, bench order and the gap against the best legal 15, with the model's per-term reasoning on every player. Does NOT recommend transfers or chips — see `notAdvisedOn` in the response, and B-008.
+         * @description Captain, vice, bench order and the gap against the best legal 15, with the model's per-term reasoning on every player, and `reasoning` for what the optimizer refused. Transfers and chips are a separate call: GET /insights/transfers/{managerId}.
          */
         get: operations["InsightsController_adviceForManager"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/insights/transfers/{managerId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * What to do with the squad this manager already has.
+         * @description Transfers with the −4 hit inside the objective, priced at reconstructed SELL values rather than market prices, plus chip WINDOWS — a chip is unspendable once used, so the model names the gameweek the calendar argues for and never commits one.
+         */
+        get: operations["InsightsController_transferPlan"];
         put?: never;
         post?: never;
         delete?: never;
@@ -424,6 +444,82 @@ export interface components {
         AdviceRequestDto: {
             /** @description Our internal player ids (cuid) for the 15. */
             playerIds: string[];
+        };
+        TransferOutDto: {
+            playerId: string;
+            webName: string;
+            /** @enum {string} */
+            position: "GKP" | "DEF" | "MID" | "FWD";
+            teamShortName: string;
+            /** @description Market price in tenths of a million. */
+            nowCost: number;
+            /** @description Horizon expected points, decayed. */
+            epHorizon: number;
+            /** @description What selling returns, in tenths: purchase price plus half the rise, rounded down. Null when the purchase price could not be reconstructed at all. */
+            sellValue: number | null;
+            /**
+             * @description Where the purchase price came from. 'transfer-log' is exact — the manager's own element_in_cost. 'starting-gameweek-price' is exact for a player held since their first gameweek, because FPL's per-gameweek value IS the price that week. 'unknown' means the budget used the market price, which overstates it.
+             * @enum {string}
+             */
+            sellValueSource: "transfer-log" | "starting-gameweek-price" | "unknown";
+        };
+        TransferSideDto: {
+            playerId: string;
+            webName: string;
+            /** @enum {string} */
+            position: "GKP" | "DEF" | "MID" | "FWD";
+            teamShortName: string;
+            /** @description Market price in tenths of a million. */
+            nowCost: number;
+            /** @description Horizon expected points, decayed. */
+            epHorizon: number;
+        };
+        PlannedMoveDto: {
+            out: components["schemas"]["TransferOutDto"];
+            in: components["schemas"]["TransferSideDto"];
+            /** @description Horizon EP this single move adds, before any hit. The hit is charged once against the plan, not per move, because it is a property of how many moves there are. */
+            gainEp: number;
+        };
+        ChipAdviceDto: {
+            /** @enum {string} */
+            chip: "bboost" | "3xc" | "freehit" | "wildcard" | "manager";
+            label: string;
+            /** @description The gameweek the CALENDAR argues for, or null when none in the horizon does — which is the common answer early in a season, not a failure. Never a gameweek for the wildcard: nothing in a fixture list argues for one. */
+            gameweekId: number | null;
+            /** @description Why, in the words a user would use. */
+            reason: string;
+            /** @description Already used, so there is nothing to advise. */
+            spent: boolean;
+        };
+        TransferPlanDto: {
+            managerId: number;
+            /** @description The gameweek the plan is for — the next one. */
+            gameweekId: number;
+            horizonGameweekIds: number[];
+            modelVersion: string;
+            /** @description Free transfers in hand, replayed from the manager's own gameweek history. FPL exposes no free-transfer count publicly. */
+            freeTransfers: number;
+            /** @description False when that replay had a gap in it, which makes the count a lower bound rather than a number. */
+            freeTransfersReconstructed: boolean;
+            /** @description Bank, in tenths of a million. */
+            bank: number;
+            /** @description Empty means hold — the solver always has holding available to it, so an empty plan is a decision and not a missing answer. */
+            moves: components["schemas"]["PlannedMoveDto"][];
+            /** @description Transfers beyond the free ones. */
+            hits: number;
+            /** @description Points those hits cost, as a positive number. */
+            hitCost: number;
+            /** @description Horizon EP of the squad as it stands. */
+            currentEp: number;
+            /** @description Horizon EP after the moves, with the hit already subtracted. */
+            plannedEp: number;
+            /** @description plannedEp − currentEp. Never negative: holding is always in the solver’s feasible set. */
+            netGainEp: number;
+            /** @description Picks whose sell value could not be reconstructed, so the budget used their market price. */
+            sellValueUnknown: string[];
+            chips: components["schemas"]["ChipAdviceDto"][];
+            /** @description What this plan is not, in the payload rather than only in a plan file. */
+            caveats: string[];
         };
         PlayerListItemDto: {
             /** @description Our internal id (cuid) — what the squad endpoints take. */
@@ -787,6 +883,49 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["ApiEnvelopeDto"] & {
                         data: components["schemas"]["AdviceDto"];
+                        /** @enum {boolean} */
+                        success?: true;
+                        /** @enum {string|null} */
+                        errorCode?: null;
+                    };
+                };
+            };
+            /** @description Import the squad first: POST /api/squad/import. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiEnvelopeDto"] & {
+                        data: null | null;
+                        /** @enum {boolean} */
+                        success?: false;
+                        /** @enum {string} */
+                        errorCode?: "SQUAD_NOT_IMPORTED";
+                    };
+                };
+            };
+        };
+    };
+    InsightsController_transferPlan: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                managerId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The plan. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiEnvelopeDto"] & {
+                        data: components["schemas"]["TransferPlanDto"];
                         /** @enum {boolean} */
                         success?: true;
                         /** @enum {string|null} */
