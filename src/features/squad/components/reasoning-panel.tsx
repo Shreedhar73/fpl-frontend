@@ -103,8 +103,14 @@ export function ReasoningPanel({ advice }: { advice: Advice }) {
             title="Betting against itself"
             subtitle={`${collisions.pairsConsidered.toLocaleString()} attacker-and-defender pairs were priced across the pool; this squad holds ${collisions.taken.length}.`}
             aside={
-              <span title="Horizon expected points charged to this squad for every pair it holds, whether or not both sides start">
+              <span title="Horizon expected points charged to this squad: every pair it holds, whether or not both sides start, plus the armband doubling one of them">
                 paid {points(collisions.penaltyEp)}
+                {collisions.armbandEp > 0 && (
+                  <span className="text-ink-3">
+                    {' '}
+                    ({points(collisions.armbandEp)} armband)
+                  </span>
+                )}
               </span>
             }
           />
@@ -132,6 +138,17 @@ export function ReasoningPanel({ advice }: { advice: Advice }) {
                       ? 'both started'
                       : 'held, one of them benched'}
                   </p>
+                  {/*
+                    The armband is the worst version of this bet — it doubles the stake on the
+                    correlated outcome, not only the reward — so the pair it sits on is named rather
+                    than folded into a total. B-027 exists because that charge was missing entirely.
+                  */}
+                  {c.captained && (
+                    <p className="mt-0.5 font-medium text-ink-2">
+                      Our captain is one side of this — charged{' '}
+                      {points(c.lambda)} again for doubling it.
+                    </p>
+                  )}
                 </li>
               ))}
             </ul>

@@ -412,14 +412,18 @@ export interface components {
             lambda: number;
             /** @description Whether the eleven started both sides of this pair. Holding is what is charged and starting is a separate fact (B-025): a squad can pay for a pair and field only one half of it, which is a state the payload had no way to express before — it reported no conflict at all. */
             bothStarted: boolean;
+            /** @description Whether OUR captain is one side of this pair. The armband doubles the stake on a correlated outcome, not only the reward, so a captained pair is charged a second time (B-027) — and, like the first charge, against a player we own rather than one we start. */
+            captained: boolean;
         };
         FixtureCollisionsDto: {
             /** @description Horizon points charged per conflicting pair the squad HOLDS. The policy constant itself: it was briefly scaled by the bench weight (B-025) and a second field carried the constant beside it, which B-026 undid — the scaling was exact only for a pair nobody starts. */
             lambda: number;
             /** @description Conflicting pairs across the whole candidate pool. */
             pairsConsidered: number;
-            /** @description Horizon EP this SQUAD was charged for the pairs it holds. Before B-025 this was charged against the eleven, so a squad that owned both sides of a conflict and started one of them reported zero — a user told there was no conflict in a squad holding one. */
+            /** @description Horizon EP this SQUAD was charged in total — the pairs it holds, plus what the armband added by doubling one of them. Before B-025 this was charged against the eleven, so a squad that owned both sides of a conflict and started one of them reported zero. */
             penaltyEp: number;
+            /** @description Of that total, what the armband added (B-027). Zero when the captain is in no held pair. Separate because a charge a panel cannot attribute is one a reader cannot argue with. */
+            armbandEp: number;
             /** @description Every pair the squad holds, each with whether both sides started. Empty means the squad holds no conflicting pair — not that none was charged. */
             taken: components["schemas"]["CollisionTakenDto"][];
             /** @description What this guard is, and — unlike the floor — what it is NOT. It was measured over 103 archived gameweeks and did not improve realised points. A UI must not present it as if it had. */
