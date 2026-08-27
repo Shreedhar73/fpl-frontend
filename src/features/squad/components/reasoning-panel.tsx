@@ -24,7 +24,8 @@ export function ReasoningPanel({ advice }: { advice: Advice }) {
   const reasoning = advice.reasoning;
   if (!reasoning) return null;
 
-  const { appearanceFloor: floor, fixtureCollisions: collisions } = reasoning;
+  const { appearanceFloor: floor, defenceConcentration: concentration } =
+    reasoning;
 
   return (
     <Card as="section">
@@ -93,74 +94,73 @@ export function ReasoningPanel({ advice }: { advice: Advice }) {
 
         <div className="flex flex-col gap-3">
           {/*
-            The subject is the SQUAD, not the XI, and the wording had to change with it (B-025). The
-            charge used to fall on the eleven, so this read "this XI kept N" — and a squad that owned
-            both sides of a conflict and started one of them showed nothing at all. Holding is what is
-            paid for now; whether both sides start is a separate line on each pair.
+            This section used to be "Betting against itself" — a charge for owning one of our
+            attackers against one of our defenders in the same match. B-028 measured that over three
+            archived seasons and it was a HEDGE: holding both sides cut the pair's variance by a
+            fifth. What actually concentrates a squad is two of one club's defence, sharing one clean
+            sheet, and that is what the backend charges for now (B-029).
           */}
           <SectionHeading
             level={3}
-            title="Betting against itself"
-            subtitle={`${collisions.pairsConsidered.toLocaleString()} attacker-and-defender pairs were priced across the pool; this squad holds ${collisions.taken.length}.`}
+            title="Too much of one defence"
+            subtitle={`${concentration.pairsHeld} same-club defensive ${concentration.pairsHeld === 1 ? 'pair is' : 'pairs are'} in this squad; ${concentration.started.length} ${concentration.started.length === 1 ? 'is' : 'are'} on the pitch together.`}
             aside={
-              <span title="Horizon expected points charged to this squad: every pair it holds, whether or not both sides start, plus the armband doubling one of them">
-                paid {points(collisions.penaltyEp)}
-                {collisions.armbandEp > 0 && (
-                  <span className="text-ink-3">
-                    {' '}
-                    ({points(collisions.armbandEp)} armband)
-                  </span>
-                )}
+              <span title="Horizon expected points charged for starting two of one club's defence together. Holding one on the bench costs nothing here — a benched player carries no exposure.">
+                paid {points(concentration.penaltyEp)}
               </span>
             }
           />
 
-          {collisions.taken.length === 0 ? (
+          {concentration.started.length === 0 &&
+          concentration.benched.length === 0 ? (
             <p className="text-xs leading-5 text-ink-2">
-              This squad holds no attacker against its own defender, so it paid
-              nothing.
+              No two of this squad&rsquo;s defensive players share a club, so it
+              paid nothing.
             </p>
           ) : (
             <ul className="flex flex-col gap-1.5">
-              {collisions.taken.map((c) => (
+              {concentration.started.map((c) => (
                 <li
-                  key={`${c.fixture}-${c.attacker}-${c.defender}`}
+                  key={`started-${c.club}-${c.players.join('-')}`}
                   className="rounded-lg border border-line bg-surface-2 px-2.5 py-1.5 text-xs"
                 >
                   <p className="font-medium text-ink">
-                    {c.attacker}{' '}
-                    <span className="font-normal text-ink-3">against</span>{' '}
-                    {c.defender}
+                    {c.players[0]}{' '}
+                    <span className="font-normal text-ink-3">and</span>{' '}
+                    {c.players[1]}
                   </p>
                   <p className="mt-0.5 text-ink-3">
-                    {c.fixture} · {points(c.lambda)} charged ·{' '}
-                    {c.bothStarted
-                      ? 'both started'
-                      : 'held, one of them benched'}
+                    {c.club} &middot; both starting &middot; {points(c.lambda)}{' '}
+                    charged
                   </p>
-                  {/*
-                    The armband is the worst version of this bet — it doubles the stake on the
-                    correlated outcome, not only the reward — so the pair it sits on is named rather
-                    than folded into a total. B-027 exists because that charge was missing entirely.
-                  */}
-                  {c.captained && (
-                    <p className="mt-0.5 font-medium text-ink-2">
-                      Our captain is one side of this — charged{' '}
-                      {points(c.lambda)} again for doubling it.
-                    </p>
-                  )}
+                </li>
+              ))}
+              {/*
+                Held but not started carries no charge, and is shown anyway: the money was still
+                spent, and a user looking at a £4.6m defender on the bench is entitled to know why he
+                is there.
+              */}
+              {concentration.benched.map((c) => (
+                <li
+                  key={`benched-${c.club}-${c.players.join('-')}`}
+                  className="rounded-lg border border-line bg-surface-2 px-2.5 py-1.5 text-xs opacity-70"
+                >
+                  <p className="font-medium text-ink">
+                    {c.players[0]}{' '}
+                    <span className="font-normal text-ink-3">and</span>{' '}
+                    {c.players[1]}
+                  </p>
+                  <p className="mt-0.5 text-ink-3">
+                    {c.club} &middot; owned, not both starting &middot; nothing
+                    charged
+                  </p>
                 </li>
               ))}
             </ul>
           )}
 
-          {/*
-            `warn`, not `limit`, and the difference is the point. The floor's note explains a rule we
-            stand behind. This one carries a measurement that did not support the rule it justifies,
-            and a reader who skims both should come away knowing which is which.
-          */}
-          <Note title="This one was measured, and it did not pay" tone="warn">
-            {collisions.statement}
+          <Note title="The correlation was measured; the charge is a policy choice" tone="warn">
+            {concentration.statement}
           </Note>
         </div>
       </div>
