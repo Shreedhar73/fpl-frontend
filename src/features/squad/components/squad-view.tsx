@@ -12,6 +12,7 @@ import {
   RosterSection,
 } from './advice-panel';
 import { Pitch } from './pitch';
+import { ReasoningPanel } from './reasoning-panel';
 
 /**
  * One view for all three ways a squad arrives, which is the point of the backend returning one
@@ -93,6 +94,10 @@ export function SquadView({
       </div>
 
       <ComparisonCard advice={advice} />
+      {/* After the comparison and before the roster: it explains the gap the comparison just
+          showed, and a reader who has not asked "why is this squad this squad" has not needed it
+          yet. */}
+      <ReasoningPanel advice={advice} />
       <RosterSection players={advice.players} />
       <LimitsNote advice={advice} />
     </main>
