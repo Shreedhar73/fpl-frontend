@@ -2,9 +2,11 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import {
   getAdvice,
+  getTransferPlan,
   importSquad,
   type Advice,
   type Squad,
+  type TransferPlan,
 } from '@/features/squad/api/squad.api';
 import { ErrorState } from '@/features/squad/components/error-state';
 import { SquadView } from '@/features/squad/components/squad-view';
@@ -76,5 +78,23 @@ export default async function ManagerSquadPage({
     );
   }
 
-  return <SquadView squad={squad} advice={advice} meta={meta} />;
+  // The plan is fetched LAST and its failure is not fatal. It makes two on-demand calls against the
+  // FPL API and a second solve, so it is the piece most likely to be slow or unavailable — and a
+  // squad with its advice is still worth a page without it. `notAdvisedOn` in the advice already
+  // states the limits, so nothing on screen claims a plan that is not there.
+  let transferPlan: TransferPlan | null = null;
+  try {
+    transferPlan = (await getTransferPlan(id)).data;
+  } catch {
+    transferPlan = null;
+  }
+
+  return (
+    <SquadView
+      squad={squad}
+      advice={advice}
+      meta={meta}
+      transferPlan={transferPlan}
+    />
+  );
 }

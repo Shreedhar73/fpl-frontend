@@ -3,7 +3,7 @@ import { Badge, FactChip } from '@/components/ui/badge';
 import { Provenance } from '@/components/ui/provenance';
 import type { ApiResponseMeta } from '@/lib/api/types';
 import { money } from '@/lib/format';
-import type { Advice, Squad } from '../api/squad.api';
+import type { Advice, Squad, TransferPlan } from '../api/squad.api';
 import {
   AdviceStats,
   CaptainCard,
@@ -13,6 +13,7 @@ import {
 } from './advice-panel';
 import { Pitch } from './pitch';
 import { ReasoningPanel } from './reasoning-panel';
+import { TransferPanel } from './transfer-panel';
 
 /**
  * One view for all three ways a squad arrives, which is the point of the backend returning one
@@ -26,10 +27,16 @@ export function SquadView({
   squad,
   advice,
   meta,
+  transferPlan,
 }: {
   squad: Squad;
   advice: Advice;
   meta: ApiResponseMeta | null;
+  /**
+   * Null on the recommended squad, which has no manager and therefore no transfers, and null when
+   * the plan call failed — the squad and its advice are still worth showing without it.
+   */
+  transferPlan?: TransferPlan | null;
 }) {
   const isRecommended = squad.source === 'recommended';
 
@@ -93,6 +100,9 @@ export function SquadView({
         </div>
       </div>
 
+      {/* Before the comparison, because "what should I do" outranks "how far behind am I". The
+          comparison then explains the gap the plan does not close. */}
+      {transferPlan && <TransferPanel plan={transferPlan} />}
       <ComparisonCard advice={advice} />
       {/* After the comparison and before the roster: it explains the gap the comparison just
           showed, and a reader who has not asked "why is this squad this squad" has not needed it

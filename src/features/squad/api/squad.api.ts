@@ -16,6 +16,9 @@ export type Advice = Schema<'AdviceDto'>;
 export type AdvicePlayer = Schema<'AdvicePlayerDto'>;
 export type Comparison = Schema<'ComparisonDto'>;
 export type SquadDifference = Schema<'SquadDifferenceDto'>;
+export type TransferPlan = Schema<'TransferPlanDto'>;
+export type PlannedMove = Schema<'PlannedMoveDto'>;
+export type ChipAdvice = Schema<'ChipAdviceDto'>;
 
 /**
  * These return the envelope's `meta` alongside the data, and the views render it. Every number in
@@ -55,6 +58,21 @@ export async function getRecommendedSquad(): Promise<WithMeta<Squad>> {
 
 export async function getAdvice(managerId: number): Promise<WithMeta<Advice>> {
   return apiFetchWithMeta<Advice>(`/insights/advice/${managerId}`, {
+    cache: 'no-store',
+  });
+}
+
+/**
+ * The transfer plan (B-008).
+ *
+ * A separate call from the advice, because it is a separate call on the backend: it makes two
+ * on-demand reads against FPL and a second ILP solve, and the recommended-squad page — which has no
+ * manager and therefore no transfers — must not pay for it.
+ */
+export async function getTransferPlan(
+  managerId: number,
+): Promise<WithMeta<TransferPlan>> {
+  return apiFetchWithMeta<TransferPlan>(`/insights/transfers/${managerId}`, {
     cache: 'no-store',
   });
 }
