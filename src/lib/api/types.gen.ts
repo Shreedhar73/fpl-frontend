@@ -353,6 +353,53 @@ export interface components {
             /** @description In this squad and not in the optimal 15. Same caveat. */
             youHaveThatOptimalDoesNot: components["schemas"]["SquadDifferenceDto"][];
         };
+        FloorExcludedPlayerDto: {
+            playerId: string;
+            webName: string;
+            /** @enum {string} */
+            position: "GKP" | "DEF" | "MID" | "FWD";
+            /** @description e.g. "CHE". Never a team id — see the collision note below. */
+            teamShortName: string;
+            /** @description Premier League appearances, archive plus this season. Below the threshold, which is why this player was not eligible. */
+            appearances: number;
+            /** @description Horizon expected points the unguarded solve valued them at. */
+            epHorizon: number;
+        };
+        AppearanceFloorDto: {
+            /** @description Minimum appearances to enter the candidate pool. */
+            threshold: number;
+            /** @description How many of the league the floor removed. */
+            excluded: number;
+            /** @description Horizon EP the floor cost, measured against the same solve with the floor lifted and the collision penalty unchanged — so the number isolates the floor. Null when not computed. */
+            costEp: number | null;
+            /** @description The excluded players an unguarded solve would actually have picked. Not "everyone below the threshold" — that list is hundreds long and says nothing about this recommendation. */
+            wouldHaveMadeTheSquad: components["schemas"]["FloorExcludedPlayerDto"][];
+            /** @description What this guard IS, carried in the payload so a UI cannot restate it more confidently than the evidence allows. */
+            statement: string;
+        };
+        CollisionTakenDto: {
+            /** @description The match, home side first — e.g. "CHE vs BHA". Plan 009 specified this and what shipped emitted two team cuids, which is why nothing could render it: a cuid on screen looks like data. */
+            fixture: string;
+            attacker: string;
+            defender: string;
+            /** @description Horizon points charged for holding this pair. */
+            lambda: number;
+        };
+        FixtureCollisionsDto: {
+            /** @description Horizon points charged per conflicting pair held. */
+            lambda: number;
+            /** @description Conflicting pairs across the whole candidate pool. */
+            pairsConsidered: number;
+            /** @description Horizon EP this XI was charged for the pairs it kept. */
+            penaltyEp: number;
+            taken: components["schemas"]["CollisionTakenDto"][];
+            /** @description What this guard is, and — unlike the floor — what it is NOT. It was measured over 103 archived gameweeks and did not improve realised points. A UI must not present it as if it had. */
+            statement: string;
+        };
+        ReasoningDto: {
+            appearanceFloor: components["schemas"]["AppearanceFloorDto"];
+            fixtureCollisions: components["schemas"]["FixtureCollisionsDto"];
+        };
         AdviceDto: {
             /** @description The manager this advice is for. Null for the recommended squad. */
             managerId: number | null;
@@ -369,6 +416,8 @@ export interface components {
             /** @description All 15, each with the role the model would give it and its evidence. */
             players: components["schemas"]["AdvicePlayerDto"][];
             comparison: components["schemas"]["ComparisonDto"];
+            /** @description Why the RECOMMENDED squad is what it is — which players the appearance floor removed and what that cost, and which fixture collisions the recommendation kept and what it paid. It describes the optimal squad, not the one being advised on, and is null only if the solve produced none. */
+            reasoning: components["schemas"]["ReasoningDto"] | null;
             /** @description What this advice deliberately does not answer, in plain language, so the gap is visible in the payload rather than only in a plan file. */
             notAdvisedOn: string[];
         };

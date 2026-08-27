@@ -6,6 +6,7 @@ import { Stat } from '@/components/ui/stat';
 import { delta, money, percent, points } from '@/lib/format';
 import type { Advice, AdvicePlayer, SquadDifference } from '../api/squad.api';
 import { PlayerTable } from './player-table';
+import { ReasoningPanel } from './reasoning-panel';
 
 /**
  * What the model would do with this squad, and how far the squad is from the best legal one.
@@ -323,6 +324,7 @@ export function AdvicePanel({
       <CaptainCard advice={advice} />
       <AdviceStats advice={advice} />
       <ComparisonCard advice={advice} />
+      <ReasoningPanel advice={advice} />
       <RosterSection players={players ?? advice.players} />
       <LimitsNote advice={advice} />
     </div>
