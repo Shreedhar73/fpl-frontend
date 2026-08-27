@@ -408,16 +408,14 @@ export interface components {
             fixture: string;
             attacker: string;
             defender: string;
-            /** @description Horizon points charged for HOLDING this pair — the effective rate, benchWeight x the policy constant. Charged whether or not both sides start. */
+            /** @description Horizon points charged for HOLDING this pair. Charged whether or not both sides start. */
             lambda: number;
             /** @description Whether the eleven started both sides of this pair. Holding is what is charged and starting is a separate fact (B-025): a squad can pay for a pair and field only one half of it, which is a state the payload had no way to express before — it reported no conflict at all. */
             bothStarted: boolean;
         };
         FixtureCollisionsDto: {
-            /** @description Horizon points charged per conflicting pair the squad HOLDS — the effective rate the objective uses, which is benchWeight x lambdaConstant and not the constant itself. */
+            /** @description Horizon points charged per conflicting pair the squad HOLDS. The policy constant itself: it was briefly scaled by the bench weight (B-025) and a second field carried the constant beside it, which B-026 undid — the scaling was exact only for a pair nobody starts. */
             lambda: number;
-            /** @description The policy constant behind the effective rate, so a payload can be read against policy.ts. */
-            lambdaConstant: number;
             /** @description Conflicting pairs across the whole candidate pool. */
             pairsConsidered: number;
             /** @description Horizon EP this SQUAD was charged for the pairs it holds. Before B-025 this was charged against the eleven, so a squad that owned both sides of a conflict and started one of them reported zero — a user told there was no conflict in a squad holding one. */
