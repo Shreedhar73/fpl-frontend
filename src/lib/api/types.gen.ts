@@ -403,35 +403,34 @@ export interface components {
             /** @description What this guard IS, carried in the payload so a UI cannot restate it more confidently than the evidence allows. */
             statement: string;
         };
-        CollisionTakenDto: {
-            /** @description The match, home side first — e.g. "CHE vs BHA". Plan 009 specified this and what shipped emitted two team cuids, which is why nothing could render it: a cuid on screen looks like data. */
-            fixture: string;
-            attacker: string;
-            defender: string;
-            /** @description Horizon points charged for HOLDING this pair. Charged whether or not both sides start. */
+        DefencePairDto: {
+            /** @description The club both play for — e.g. "BHA". Never a team id. */
+            club: string;
+            /** @description The two defensive players, by web name. */
+            players: string[];
+            /** @description Horizon points charged for starting this pair together. */
             lambda: number;
-            /** @description Whether the eleven started both sides of this pair. Holding is what is charged and starting is a separate fact (B-025): a squad can pay for a pair and field only one half of it, which is a state the payload had no way to express before — it reported no conflict at all. */
-            bothStarted: boolean;
-            /** @description Whether OUR captain is one side of this pair. The armband doubles the stake on a correlated outcome, not only the reward, so a captained pair is charged a second time (B-027) — and, like the first charge, against a player we own rather than one we start. */
-            captained: boolean;
         };
-        FixtureCollisionsDto: {
-            /** @description Horizon points charged per conflicting pair the squad HOLDS. The policy constant itself: it was briefly scaled by the bench weight (B-025) and a second field carried the constant beside it, which B-026 undid — the scaling was exact only for a pair nobody starts. */
+        HeldDefencePairDto: {
+            /** @description The club both play for — e.g. "BHA". */
+            club: string;
+            players: string[];
+        };
+        DefenceConcentrationDto: {
+            /** @description Horizon points charged per pair of our defensive players who START for the same club. */
             lambda: number;
-            /** @description Conflicting pairs across the whole candidate pool. */
-            pairsConsidered: number;
-            /** @description Horizon EP this SQUAD was charged in total — the pairs it holds, plus what the armband added by doubling one of them. Before B-025 this was charged against the eleven, so a squad that owned both sides of a conflict and started one of them reported zero. */
+            /** @description Same-club defensive pairs the fifteen holds, started or not. A pair with one member benched is held and not charged — a user should still see it, because the money was spent. */
+            pairsHeld: number;
+            /** @description Horizon EP charged, which is for the started pairs only. */
             penaltyEp: number;
-            /** @description Of that total, what the armband added (B-027). Zero when the captain is in no held pair. Separate because a charge a panel cannot attribute is one a reader cannot argue with. */
-            armbandEp: number;
-            /** @description Every pair the squad holds, each with whether both sides started. Empty means the squad holds no conflicting pair — not that none was charged. */
-            taken: components["schemas"]["CollisionTakenDto"][];
-            /** @description What this guard is, and — unlike the floor — what it is NOT. It was measured over 103 archived gameweeks and did not improve realised points. A UI must not present it as if it had. */
+            started: components["schemas"]["DefencePairDto"][];
+            benched: components["schemas"]["HeldDefencePairDto"][];
+            /** @description What this guard is, and what it is NOT. The correlation behind it was measured over three archived seasons; the CHARGE is a policy choice, because nothing has measured that a narrower squad scores more. A UI must not present it as if something had. */
             statement: string;
         };
         ReasoningDto: {
             appearanceFloor: components["schemas"]["AppearanceFloorDto"];
-            fixtureCollisions: components["schemas"]["FixtureCollisionsDto"];
+            defenceConcentration: components["schemas"]["DefenceConcentrationDto"];
         };
         AdviceDto: {
             /** @description The manager this advice is for. Null for the recommended squad. */
