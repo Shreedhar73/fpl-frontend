@@ -92,12 +92,18 @@ export function ReasoningPanel({ advice }: { advice: Advice }) {
         </div>
 
         <div className="flex flex-col gap-3">
+          {/*
+            The subject is the SQUAD, not the XI, and the wording had to change with it (B-025). The
+            charge used to fall on the eleven, so this read "this XI kept N" — and a squad that owned
+            both sides of a conflict and started one of them showed nothing at all. Holding is what is
+            paid for now; whether both sides start is a separate line on each pair.
+          */}
           <SectionHeading
             level={3}
             title="Betting against itself"
-            subtitle={`${collisions.pairsConsidered.toLocaleString()} attacker-and-defender pairs were priced across the pool; this XI kept ${collisions.taken.length}.`}
+            subtitle={`${collisions.pairsConsidered.toLocaleString()} attacker-and-defender pairs were priced across the pool; this squad holds ${collisions.taken.length}.`}
             aside={
-              <span title="Horizon expected points charged to this XI for the pairs it kept">
+              <span title="Horizon expected points charged to this squad for every pair it holds, whether or not both sides start">
                 paid {points(collisions.penaltyEp)}
               </span>
             }
@@ -105,7 +111,7 @@ export function ReasoningPanel({ advice }: { advice: Advice }) {
 
           {collisions.taken.length === 0 ? (
             <p className="text-xs leading-5 text-ink-2">
-              This XI holds no attacker against its own defender, so it paid
+              This squad holds no attacker against its own defender, so it paid
               nothing.
             </p>
           ) : (
@@ -121,7 +127,10 @@ export function ReasoningPanel({ advice }: { advice: Advice }) {
                     {c.defender}
                   </p>
                   <p className="mt-0.5 text-ink-3">
-                    {c.fixture} · {points(c.lambda)} charged
+                    {c.fixture} · {points(c.lambda)} charged ·{' '}
+                    {c.bothStarted
+                      ? 'both started'
+                      : 'held, one of them benched'}
                   </p>
                 </li>
               ))}
