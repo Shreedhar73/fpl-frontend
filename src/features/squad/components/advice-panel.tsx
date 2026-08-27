@@ -72,6 +72,38 @@ export function CaptainCard({ advice }: { advice: Advice }) {
               for the armband.
             </p>
           )}
+          {/*
+            The armband is a VARIANCE decision as much as a mean one — doubling a player doubles his
+            blank as well as his haul — so the spread belongs on the one card where the stake is
+            doubled. `sd === null` means the projection was written by a model version that composed
+            no distribution; it is rendered as absence rather than as a confident zero.
+          */}
+          {evidence?.sd !== null && evidence?.sd !== undefined && (
+            <p className="mt-1.5 text-xs leading-5 text-ink-3">
+              Spread{' '}
+              <span className="tabular-nums text-ink-2">
+                ±{evidence.sd.toFixed(1)}
+              </span>{' '}
+              points.{' '}
+              {evidence.pBlank !== null && evidence.pBlank !== undefined && (
+                <>
+                  <span className="tabular-nums text-ink-2">
+                    {percent(evidence.pBlank)}
+                  </span>{' '}
+                  chance of a blank,{' '}
+                </>
+              )}
+              {evidence.pHaul !== null && evidence.pHaul !== undefined && (
+                <>
+                  <span className="tabular-nums text-ink-2">
+                    {percent(evidence.pHaul)}
+                  </span>{' '}
+                  of ten or more —{' '}
+                </>
+              )}
+              and the armband doubles both.
+            </p>
+          )}
         </div>
 
         <div className="shrink-0 text-right">

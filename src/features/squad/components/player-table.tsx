@@ -155,6 +155,11 @@ export function PlayerTable({ players }: { players: AdvicePlayer[] }) {
                 Horizon
               </abbr>
             </th>
+            <th className="pb-2 pr-3 text-right font-medium">
+              <abbr title="P(2 points or fewer — the appearance and nothing else). Two players with the same projection are not the same bet.">
+                Blank
+              </abbr>
+            </th>
             <th className="pb-2 font-medium">Why</th>
           </tr>
         </thead>
@@ -189,6 +194,28 @@ export function PlayerTable({ players }: { players: AdvicePlayer[] }) {
               </td>
               <td className="py-2 pr-3 text-right text-sm tabular-nums text-ink-2">
                 {points(p.epHorizon)}
+              </td>
+              {/*
+                An em dash, not 0%, when the projection carries no distribution. A zero here would
+                read as "this player never blanks", which is the single most misleading thing this
+                column could say.
+              */}
+              <td className="py-2 pr-3 text-right text-sm tabular-nums text-ink-3">
+                {p.evidence?.pBlank === null ||
+                p.evidence?.pBlank === undefined ? (
+                  <span title="This projection was written by a model version that carried no distribution">
+                    —
+                  </span>
+                ) : (
+                  <>
+                    {percent(p.evidence.pBlank)}
+                    {p.evidence.sd !== null && p.evidence.sd !== undefined && (
+                      <span className="block text-[10px] text-ink-3">
+                        ±{p.evidence.sd.toFixed(1)}
+                      </span>
+                    )}
+                  </>
+                )}
               </td>
               <td className="py-2">
                 <Terms player={p} />
