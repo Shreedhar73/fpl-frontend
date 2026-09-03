@@ -29,6 +29,11 @@ export async function SiteHeader() {
 
         <div className="flex-1" />
 
+        {next === null && (
+          <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-3" title="No gameweek has a deadline still to come, or the backend is not reachable">
+            no upcoming deadline
+          </span>
+        )}
         {next && (
           <>
             <Deadline

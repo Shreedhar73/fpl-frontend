@@ -1,8 +1,9 @@
+import { notFound } from 'next/navigation';
 import type { ReactNode } from 'react';
 import { Provenance } from '@/components/ui/provenance';
 import { BoardError } from './components/board-error';
 import { BoardHead, type BoardTab } from './components/board-head';
-import { loadTeam, type TeamData } from './load-team';
+import { loadTeam, resolveSource, type TeamData } from './load-team';
 
 type SearchParams = Promise<{ ids?: string; ft?: string; player?: string; vs?: string }>;
 
@@ -23,6 +24,8 @@ export async function BoardPage({
 }) {
   const { id } = await params;
   const sp = await searchParams;
+  // Not a team — a junk segment, or `built` with no ids — is the not-found page, before any fetch.
+  if (resolveSource(id, { ids: sp.ids, ft: sp.ft }) === null) notFound();
   let team: TeamData;
   try {
     team = await loadTeam(id, id === 'built' ? sp.ids : undefined, id === 'built' ? sp.ft : undefined);
