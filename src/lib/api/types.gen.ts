@@ -241,6 +241,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/gameweeks/next": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The gameweek a decision can still be made for, with its deadline and the horizon.
+         * @description Calendar only, no model output — so no `dataAsOfGw`. The first gameweek whose deadline has not passed, and the gameweek ids the advice is solved over from there.
+         */
+        get: operations["GameweeksController_next"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -363,6 +383,20 @@ export interface components {
             /** @description P(10 points or more). */
             pHaul: number | null;
         };
+        HorizonFixtureDto: {
+            /** @example MCI */
+            opponentShortName: string;
+            isHome: boolean;
+            /** @description FPL’s difficulty of this fixture from THIS player’s side, 1–5. A home player reads the home figure; the inverted reading looks just as plausible on screen and is wrong. */
+            difficulty: number;
+        };
+        HorizonGameweekDto: {
+            gameweekId: number;
+            /** @description The served model’s expected points for this gameweek. Null where it has no row — a null is not a zero, and a horizon cell must render it as absence. */
+            expectedPoints: number | null;
+            /** @description This gameweek’s fixtures for the player’s club. Empty for a blank. */
+            fixtures: components["schemas"]["HorizonFixtureDto"][];
+        };
         AdvicePlayerDto: {
             playerId: string;
             fplId: number;
@@ -391,6 +425,8 @@ export interface components {
             epHorizon: number;
             /** @description Null when the model has no projection for this player in the next gameweek. */
             evidence: components["schemas"]["EvidenceDto"] | null;
+            /** @description One entry per horizon gameweek, in `horizonGameweekIds` order (plan 032): the projection and the fixtures behind it, so a pitch, a ledger and a plan can show the run without a fetch per player. Undecayed, unlike `epHorizon`. */
+            horizon: components["schemas"]["HorizonGameweekDto"][];
         };
         SquadDifferenceDto: {
             playerId: string;
@@ -596,6 +632,20 @@ export interface components {
             /** @description Bank in tenths of a million. Omitted, it is what the fifteen leaves of the budget at today's prices — what FPL would leave a manager who bought exactly this squad now. */
             bank?: number;
         };
+        TeamFixtureDto: {
+            gameweekId: number;
+            /** @example MCI */
+            opponentShortName: string;
+            isHome: boolean;
+            /** @description FPL’s difficulty from this club’s side, 1–5. A home club reads the home figure. */
+            difficulty: number;
+        };
+        TeamFixturesDto: {
+            /** @example MCI */
+            teamShortName: string;
+            /** @description The club’s fixtures over the horizon, in gameweek order. A blank gameweek has no row; a double has two. */
+            fixtures: components["schemas"]["TeamFixtureDto"][];
+        };
         PlayerListItemDto: {
             /** @description Our internal id (cuid) — what the squad endpoints take. */
             playerId: string;
@@ -616,11 +666,17 @@ export interface components {
             epNextGw: number | null;
             /** @description P(features at all) next gameweek. The term that dominates every other one. */
             playProbability: number | null;
+            /** @description Our expected points summed over `horizonGameweekIds`, undecayed (plan 032). Null when the model has no row for this player in any of them. The number a builder sorts a run of fixtures by; the per-gameweek split is on `GET /api/players/{playerId}`. */
+            epHorizon: number | null;
         };
         PlayerListDto: {
             /** @description Which gameweek the expected points are for. Null when nothing has been projected yet. */
             gameweekId: number | null;
             modelVersion: string | null;
+            /** @description The gameweeks `epHorizon` is summed over and `fixtures` cover, in order. Empty before the calendar is synced. */
+            horizonGameweekIds: number[];
+            /** @description Every club’s horizon fixtures, once per club rather than once per player: a 651-row list joins on `teamShortName` instead of carrying 651 × 5 fixture rows (measured 129.5 KB raw before this field, 2026-09-03). */
+            fixtures: components["schemas"]["TeamFixturesDto"][];
             /** @description Every player in the game. The list is bounded by the game itself — 612 in 2025/26 — so it is served whole rather than paged: a picker needs to filter across all of them at once. */
             count: number;
             players: components["schemas"]["PlayerListItemDto"][];
@@ -735,6 +791,19 @@ export interface components {
             projections: components["schemas"]["PlayerProjectionDto"][];
             /** @description The last finished matches, newest first. Empty before the season’s first match. */
             recent: components["schemas"]["PlayerRecentGameweekDto"][];
+        };
+        NextGameweekDto: {
+            /** @description FPL’s event id, e.g. 3. */
+            id: number;
+            /** @example Gameweek 3 */
+            name: string;
+            /**
+             * @description ISO 8601, UTC. The moment picks lock — the clock every screen counts down to.
+             * @example 2026-09-04T17:30:00.000Z
+             */
+            deadlineTime: string;
+            /** @description This gameweek and the ones after it that the advice is solved over, in order — the same read of the calendar the optimizer makes, so a horizon column on screen is the horizon in the numbers. */
+            horizonGameweekIds: number[];
         };
     };
     responses: never;
@@ -1261,6 +1330,47 @@ export interface operations {
                         success?: false;
                         /** @enum {string} */
                         errorCode?: "UNKNOWN_PLAYER";
+                    };
+                };
+            };
+        };
+    };
+    GameweeksController_next: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The next gameweek. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiEnvelopeDto"] & {
+                        data: components["schemas"]["NextGameweekDto"];
+                        /** @enum {boolean} */
+                        success?: true;
+                        /** @enum {string|null} */
+                        errorCode?: null;
+                    };
+                };
+            };
+            /** @description Every deadline has passed, or the calendar has not been synced. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiEnvelopeDto"] & {
+                        data: null | null;
+                        /** @enum {boolean} */
+                        success?: false;
+                        /** @enum {string} */
+                        errorCode?: "NO_UPCOMING_GAMEWEEK";
                     };
                 };
             };

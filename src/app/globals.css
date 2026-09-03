@@ -64,8 +64,19 @@
   /* System stacks, not next/font/google: Next fetches Google Fonts at build and dev time, and a
      machine that cannot reach fonts.gstatic.com gets a 500 on every page. */
   --font-app-sans:
-    ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial,
-    "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+    var(--font-body), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+  /* Numerals and headings. Archivo, self-hosted; falls back to the same system stack. */
+  --font-app-display:
+    var(--font-display), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+
+  /* Fixture difficulty, FPL's 1–5, as a tone. Always printed beside the opponent's name — the
+     tone is a reading aid, never the signal (the same rule as the position hues). */
+  --diff-easy: #0f7a54;
+  --diff-mid: #4a5563;
+  --diff-hard: #8a5300;
+  --diff-hardest: #b02036;
   --font-app-mono:
     ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
 }
@@ -99,6 +110,11 @@
     --def: #3b93db;
     --mid: #0f9070;
     --fwd: #c06a9a;
+
+    --diff-easy: #33b184;
+    --diff-mid: #a7b2c0;
+    --diff-hard: #d09a3a;
+    --diff-hardest: #e26a7f;
 
     --turf-a: #17583a;
     --turf-b: #134a31;
@@ -141,6 +157,11 @@
   --mid: #0f9070;
   --fwd: #c06a9a;
 
+  --diff-easy: #33b184;
+  --diff-mid: #a7b2c0;
+  --diff-hard: #d09a3a;
+  --diff-hardest: #e26a7f;
+
   --turf-a: #17583a;
   --turf-b: #134a31;
   --turf-line: rgb(255 255 255 / 0.16);
@@ -178,7 +199,29 @@
   --color-fwd: var(--fwd);
 
   --font-sans: var(--font-app-sans);
+  --font-display: var(--font-app-display);
   --font-mono: var(--font-app-mono);
+
+  --color-diff-easy: var(--diff-easy);
+  --color-diff-mid: var(--diff-mid);
+  --color-diff-hard: var(--diff-hard);
+  --color-diff-hardest: var(--diff-hardest);
+}
+
+/* Numerals and headings: the display face with tabular figures, so columns of xP line up. */
+.num {
+  font-family: var(--font-app-display);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+/* A hairline between siblings in a row or a column — the board's way of separating things
+   without nesting cards. */
+.hairline-x > * + * {
+  border-left: 1px solid var(--line);
+}
+.hairline-y > * + * {
+  border-top: 1px solid var(--line);
 }
 
 html {
@@ -324,7 +367,40 @@ body {
   }
 }
 
-@media (min-width: 640px) {
+/* From `lg` the sheet is a right rail: the board stays visible beside it, and two players fit
+   side by side when the reader compares. */
+@media (min-width: 1024px) {
+  .sheet {
+    position: fixed;
+    inset: 0 0 0 auto;
+    z-index: 40;
+    margin: 0;
+    width: min(40rem, calc(100% - 2rem));
+    max-height: 100dvh;
+    height: 100dvh;
+    border-radius: 0;
+    border-left: 1px solid var(--line-strong);
+  }
+  .sheet.sheet-wide {
+    width: min(58rem, calc(100% - 2rem));
+  }
+  .sheet[open] {
+    animation: rail-slide 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+}
+
+@keyframes rail-slide {
+  from {
+    transform: translateX(2rem);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@media (min-width: 640px) and (max-width: 1023.98px) {
   .sheet {
     margin: auto;
     width: min(44rem, calc(100% - 2rem));

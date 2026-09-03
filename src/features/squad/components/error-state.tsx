@@ -25,10 +25,10 @@ export function ErrorState({
           Start again
         </Link>
         <Link
-          href="/squad/recommended"
+          href="/team/recommended"
           className={buttonClass({ variant: 'secondary', size: 'sm' })}
         >
-          See the recommended squad
+          The model&apos;s 15
         </Link>
       </div>
     </div>

@@ -12,52 +12,39 @@ import {
 import { cx } from '@/lib/format';
 
 /**
- * The team ids this browser has looked at, as links. Renders nothing on the server and nothing
- * when storage is empty or unavailable, so the page around it never depends on it.
+ * The teams this browser has looked at, as rows on the entry page. Renders nothing on the server
+ * and nothing when storage is empty or unavailable, so the page around it never depends on it.
  */
-export function RecentTeams({
-  className,
-  title = 'Recently viewed',
-}: {
-  className?: string;
-  title?: string;
-}) {
-  const teams = useSyncExternalStore(
-    subscribeRecentTeams,
-    getRecentTeams,
-    getServerRecentTeams,
-  );
+export function RecentTeamRows({ className }: { className?: string }) {
+  const teams = useSyncExternalStore(subscribeRecentTeams, getRecentTeams, getServerRecentTeams);
   if (teams.length === 0) return null;
 
   return (
-    <div className={cx('flex flex-wrap items-center gap-2', className)}>
-      <span className="text-[11px] font-semibold uppercase tracking-wider text-ink-3">
-        {title}
-      </span>
-      {teams.map((t) => (
-        <span
-          key={t.id}
-          className="inline-flex items-center overflow-hidden rounded-full border border-line bg-surface text-xs"
-        >
-          <Link
-            href={`/squad/${t.id}`}
-            className="px-2.5 py-1 font-medium text-ink hover:bg-surface-2"
-          >
-            {t.name ?? `Team ${t.id}`}
-            {t.name && (
-              <span className="ml-1 font-normal tabular-nums text-ink-3">{t.id}</span>
-            )}
-          </Link>
-          <button
-            type="button"
-            onClick={() => forgetTeam(t.id)}
-            aria-label={`Forget team ${t.id}`}
-            className="border-l border-line px-1.5 py-1 text-ink-3 hover:bg-surface-2 hover:text-ink"
-          >
-            ×
-          </button>
-        </span>
-      ))}
+    <div className={cx('flex flex-col gap-2', className)}>
+      <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-3">Your teams</span>
+      <ul className="flex flex-col border-t border-line">
+        {teams.map((t) => (
+          <li key={t.id} className="flex items-center gap-3 border-b border-line">
+            <Link href={`/team/${t.id}`} className="flex min-w-0 flex-1 items-center gap-3 py-3.5 hover:text-ink">
+              <span className="flex min-w-0 flex-col">
+                <span className="truncate text-[15px] font-semibold text-ink">{t.name ?? `Team ${t.id}`}</span>
+                <span className="num text-xs text-ink-3">
+                  {t.name ? `Team ${t.id} · ` : ''}last opened {new Date(t.seenAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}
+                </span>
+              </span>
+              <svg aria-hidden viewBox="0 0 24 24" className="ml-auto size-4 shrink-0 text-ink-3" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
+            </Link>
+            <button
+              type="button"
+              onClick={() => forgetTeam(t.id)}
+              aria-label={`Forget team ${t.id}`}
+              className="grid size-8 shrink-0 place-items-center rounded-lg text-ink-3 hover:bg-surface-2 hover:text-ink"
+            >
+              ×
+            </button>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }
