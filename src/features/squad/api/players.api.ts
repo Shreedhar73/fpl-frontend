@@ -1,6 +1,6 @@
 import { apiFetch, apiFetchWithMeta, type WithMeta } from '@/lib/api/client';
 import type { Schema } from '@/lib/api/types';
-import type { Advice } from './squad.api';
+import type { Advice, TransferPlan } from './squad.api';
 
 export type PlayerList = Schema<'PlayerListDto'>;
 export type PlayerListItem = Schema<'PlayerListItemDto'>;
@@ -48,5 +48,20 @@ export async function adviseBuiltSquad(
   return apiFetchWithMeta<Advice>('/insights/advice', {
     method: 'POST',
     body: { playerIds },
+  });
+}
+
+/**
+ * The transfer plan for a hand-built fifteen (B-045). The free-transfer count is whatever the user
+ * says it is — nothing can check it — and the bank is left to the backend, which prices the
+ * fifteen at today's market and banks what the budget leaves.
+ */
+export async function planBuiltTransfers(
+  playerIds: string[],
+  freeTransfers: number,
+): Promise<WithMeta<TransferPlan>> {
+  return apiFetchWithMeta<TransferPlan>('/insights/transfers', {
+    method: 'POST',
+    body: { playerIds, freeTransfers },
   });
 }

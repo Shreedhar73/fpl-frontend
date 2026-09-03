@@ -1,5 +1,5 @@
+import type { ReactNode } from 'react';
 import { Badge, PositionChip } from '@/components/ui/badge';
-import { buttonClass } from '@/components/ui/button';
 import { Card, SectionHeading } from '@/components/ui/card';
 import { Note } from '@/components/ui/note';
 import { Stat } from '@/components/ui/stat';
@@ -16,9 +16,11 @@ import { ReasoningPanel } from './reasoning-panel';
  * which 15 would have been better, and what does this not know. The captain call is the hero
  * because it is the one decision worth two players' worth of points.
  *
- * The transfer affordance is deliberately disabled and labelled. Transfers need sell value, which
- * no public FPL endpoint exposes, and a hit calculation — that is B-008. A plausible-looking
- * suggestion built from a subtraction would be worse than an honest gap.
+ * The comparison is a set difference and says so. What to DO about the gap is the transfer plan,
+ * which is a separate solve with sell values, a free-transfer count and the −4 inside it — so the
+ * card takes a `planSlot` from the view that owns the plan, rather than guessing at one from a
+ * subtraction. The imported view links to the plan it renders; the builder puts the control that
+ * fetches one there.
  */
 
 /**
@@ -239,7 +241,14 @@ export function AdviceStats({
 }
 
 /** The set difference against the optimal 15, and the honest label on what it is not. */
-export function ComparisonCard({ advice }: { advice: Advice }) {
+export function ComparisonCard({
+  advice,
+  planSlot,
+}: {
+  advice: Advice;
+  /** the way from this gap to a plan — a link, a control, or a note that there is none */
+  planSlot?: ReactNode;
+}) {
   const c = advice.comparison;
   const horizon = advice.horizonGameweekIds;
 
@@ -300,21 +309,11 @@ export function ComparisonCard({ advice }: { advice: Advice }) {
           </div>
         )}
 
-        <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-line pt-3">
-          <button
-            type="button"
-            disabled
-            title="Not built yet — see the note beside this button"
-            className={buttonClass({ variant: 'secondary', size: 'sm' })}
-          >
-            Plan transfers
-          </button>
-          <span className="text-[11px] leading-4 text-ink-3">
-            Not built yet. The two lists above are a set difference, not a
-            transfer plan: they ignore sell value, the free transfer you have,
-            and the −4 a second one costs.
-          </span>
-        </div>
+        {planSlot && (
+          <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-line pt-3">
+            {planSlot}
+          </div>
+        )}
     </Card>
   );
 }
@@ -355,15 +354,21 @@ export function LimitsNote({ advice }: { advice: Advice }) {
 export function AdvicePanel({
   advice,
   players,
+  transfers,
+  planSlot,
 }: {
   advice: Advice;
   players?: AdvicePlayer[];
+  /** the transfer plan, rendered before the comparison it explains — same order as the squad view */
+  transfers?: ReactNode;
+  planSlot?: ReactNode;
 }) {
   return (
     <div className="flex flex-col gap-5">
       <CaptainCard advice={advice} />
       <AdviceStats advice={advice} />
-      <ComparisonCard advice={advice} />
+      {transfers}
+      <ComparisonCard advice={advice} planSlot={planSlot} />
       <ReasoningPanel advice={advice} />
       <RosterSection players={players ?? advice.players} />
       <LimitsNote advice={advice} />
