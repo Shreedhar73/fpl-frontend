@@ -57,11 +57,13 @@ export function CaptainCard({ advice }: { advice: Advice }) {
             Captain · gameweek {advice.gameweekId}
           </p>
           <div className="mt-1 flex flex-wrap items-center gap-2">
-            <PlayerTrigger playerId={captain.playerId} name={captain.webName} className="rounded-lg hover:underline underline-offset-4">
-              <h2 className="text-2xl font-semibold tracking-tight text-ink sm:text-3xl">
+            {/* The trigger sits inside the heading, not around it: a button's aria-label would
+                replace the h2's text and the page would lose its captain heading to a reader. */}
+            <h2 className="text-2xl font-semibold tracking-tight text-ink sm:text-3xl">
+              <PlayerTrigger playerId={captain.playerId} name={captain.webName} className="rounded-lg hover:underline underline-offset-4">
                 {captain.webName}
-              </h2>
-            </PlayerTrigger>
+              </PlayerTrigger>
+            </h2>
             <PositionChip position={captain.position} />
             <span className="text-xs text-ink-3">
               {captain.teamShortName} · {money(captain.nowCost)}

@@ -8,7 +8,9 @@
  */
 export type Theme = 'system' | 'light' | 'dark';
 
-export const THEME_KEY = 'theme';
+/** Namespaced like the recent-teams key: a bare `theme` on localhost is shared with every other
+ *  project that ever ran on the port, and the toggle's first render was reading one of theirs. */
+export const THEME_KEY = 'fpl-advisor.theme';
 const EVENT = 'fpl-advisor:theme';
 const ORDER: Theme[] = ['system', 'light', 'dark'];
 
