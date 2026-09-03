@@ -1,7 +1,8 @@
-import { PositionChip } from '@/components/ui/badge';
+import { PositionChip, StatusBadge } from '@/components/ui/badge';
 import { Bar } from '@/components/ui/meter';
-import { cx, money, percent, points } from '@/lib/format';
+import { cx, humanize, money, percent, points } from '@/lib/format';
 import type { AdvicePlayer } from '../api/squad.api';
+import { PlayerTrigger } from './player-sheet/player-trigger';
 
 /**
  * The 15 as a roster: what the model expects from each of them, and the terms that expectation is
@@ -9,7 +10,7 @@ import type { AdvicePlayer } from '../api/squad.api';
  * five-column table on a phone is a horizontal scroll, and a horizontal scroll on the app's densest
  * screen is where people stop reading.
  *
- * A server component. The bars are `div`s, so the whole thing ships as HTML.
+ * A server component. The bars are `div`s and the only JavaScript is the tap target on each name.
  */
 
 const ROLE_ORDER: Record<AdvicePlayer['role'], number> = {
@@ -32,14 +33,6 @@ function roleLabel(player: AdvicePlayer): string {
   }
 }
 
-/** `cleanSheet` reads as a debug key. The model's own component names are the label, spaced out. */
-function humanize(key: string): string {
-  return key
-    .replace(/[_-]+/g, ' ')
-    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
-    .toLowerCase();
-}
-
 function Terms({ player }: { player: AdvicePlayer }) {
   if (!player.evidence) {
     return (
@@ -50,14 +43,14 @@ function Terms({ player }: { player: AdvicePlayer }) {
   }
 
   const terms = Object.entries(player.evidence.components)
-    .filter(([, v]) => Math.abs(v) >= 0.05)
+    .filter(([key, v]) => key !== 'fixtures' && Math.abs(v) >= 0.05)
     .sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]))
     .slice(0, 4);
 
   return (
     <div className="flex flex-wrap items-center gap-1">
       <span
-        className="rounded bg-surface-2 px-1.5 py-0.5 text-[11px] tabular-nums text-ink-2"
+        className="rounded-md bg-surface-2 px-1.5 py-0.5 text-[11px] tabular-nums text-ink-2"
         title="Probability of playing, and the minutes the model expects"
       >
         {percent(player.evidence.playProbability)} ·{' '}
@@ -66,7 +59,7 @@ function Terms({ player }: { player: AdvicePlayer }) {
       {terms.map(([key, value]) => (
         <span
           key={key}
-          className="rounded bg-surface-2 px-1.5 py-0.5 text-[11px] text-ink-2"
+          className="rounded-md bg-surface-2 px-1.5 py-0.5 text-[11px] text-ink-2"
           title={`${humanize(key)} contributes ${value.toFixed(2)} points`}
         >
           {humanize(key)}{' '}
@@ -82,6 +75,16 @@ function Terms({ player }: { player: AdvicePlayer }) {
         </span>
       ))}
     </div>
+  );
+}
+
+function Name({ p }: { p: AdvicePlayer }) {
+  return (
+    <PlayerTrigger playerId={p.playerId} name={p.webName} className="gap-1.5 rounded-md hover:underline underline-offset-2">
+      <PositionChip position={p.position} />
+      <span className="text-sm font-semibold text-ink">{p.webName}</span>
+      <StatusBadge status={p.status} news={p.news} chance={p.chanceOfPlayingNextRound} />
+    </PlayerTrigger>
   );
 }
 
@@ -101,15 +104,10 @@ export function PlayerTable({ players }: { players: AdvicePlayer[] }) {
         {sorted.map((p) => (
           <li
             key={p.playerId}
-            className="rounded-xl border border-line bg-surface p-3"
+            className="rounded-2xl border border-line bg-surface p-3"
           >
             <div className="flex items-baseline justify-between gap-2">
-              <span className="flex items-center gap-1.5">
-                <PositionChip position={p.position} />
-                <span className="text-sm font-semibold text-ink">
-                  {p.webName}
-                </span>
-              </span>
+              <Name p={p} />
               <span className="text-sm font-semibold tabular-nums text-ink">
                 {points(p.epNextGw)}
                 <span className="ml-0.5 text-[10px] font-medium text-ink-3">
@@ -138,92 +136,89 @@ export function PlayerTable({ players }: { players: AdvicePlayer[] }) {
         ))}
       </ul>
 
-      <table className="hidden w-full text-left sm:table">
-        <caption className="sr-only">
-          Every player in the squad with projected points and the terms behind
-          them
-        </caption>
-        <thead>
-          <tr className="text-[10px] uppercase tracking-wider text-ink-3">
-            <th className="pb-2 pr-3 font-medium">Player</th>
-            <th className="pb-2 pr-3 font-medium">Role</th>
-            <th className="pb-2 pr-3 text-right font-medium">
-              <abbr title="Projected points, this gameweek">GW xP</abbr>
-            </th>
-            <th className="pb-2 pr-3 text-right font-medium">
-              <abbr title="Projected points across the whole horizon">
-                Horizon
-              </abbr>
-            </th>
-            <th className="pb-2 pr-3 text-right font-medium">
-              <abbr title="P(2 points or fewer — the appearance and nothing else). Two players with the same projection are not the same bet.">
-                Blank
-              </abbr>
-            </th>
-            <th className="pb-2 font-medium">Why</th>
-          </tr>
-        </thead>
-        <tbody>
-          {sorted.map((p) => (
-            <tr
-              key={p.playerId}
-              className="border-t border-line align-top transition-colors hover:bg-surface-2"
-            >
-              <td className="py-2 pr-3">
-                <div className="flex items-center gap-1.5">
-                  <PositionChip position={p.position} />
-                  <span className="text-sm font-medium text-ink">
-                    {p.webName}
-                  </span>
-                </div>
-                <div className="mt-0.5 text-[11px] tabular-nums text-ink-3">
-                  {p.teamShortName} · {money(p.nowCost)}
-                </div>
-              </td>
-              <td className="py-2 pr-3 text-xs text-ink-2">{roleLabel(p)}</td>
-              <td className="w-28 py-2 pr-3 text-right">
-                <span className="text-sm font-semibold tabular-nums text-ink">
-                  {points(p.epNextGw)}
-                </span>
-                <Bar
-                  value={p.epNextGw}
-                  max={maxGw}
-                  className="mt-1"
-                  color="var(--ink-2)"
-                />
-              </td>
-              <td className="py-2 pr-3 text-right text-sm tabular-nums text-ink-2">
-                {points(p.epHorizon)}
-              </td>
-              {/*
-                An em dash, not 0%, when the projection carries no distribution. A zero here would
-                read as "this player never blanks", which is the single most misleading thing this
-                column could say.
-              */}
-              <td className="py-2 pr-3 text-right text-sm tabular-nums text-ink-3">
-                {p.evidence?.pBlank === null ||
-                p.evidence?.pBlank === undefined ? (
-                  <span title="This projection was written by a model version that carried no distribution">
-                    —
-                  </span>
-                ) : (
-                  <>
-                    {percent(p.evidence.pBlank)}
-                    {p.evidence.sd !== null && p.evidence.sd !== undefined && (
-                      <span className="block text-[10px] text-ink-3">
-                        ±{p.evidence.sd.toFixed(1)}
-                      </span>
-                    )}
-                  </>
-                )}
-              </td>
-              <td className="py-2">
-                <Terms player={p} />
-              </td>
+      <div className="hidden overflow-hidden rounded-2xl border border-line bg-surface sm:block">
+        <table className="w-full text-left">
+          <caption className="sr-only">
+            Every player in the squad with projected points and the terms behind
+            them
+          </caption>
+          <thead>
+            <tr className="border-b border-line bg-surface-2 text-[10px] uppercase tracking-wider text-ink-3">
+              <th className="px-3 py-2 font-semibold">Player</th>
+              <th className="px-3 py-2 font-semibold">Role</th>
+              <th className="px-3 py-2 text-right font-semibold">
+                <abbr title="Projected points, this gameweek">GW xP</abbr>
+              </th>
+              <th className="px-3 py-2 text-right font-semibold">
+                <abbr title="Projected points across the whole horizon">
+                  Horizon
+                </abbr>
+              </th>
+              <th className="px-3 py-2 text-right font-semibold">
+                <abbr title="P(2 points or fewer — the appearance and nothing else). Two players with the same projection are not the same bet.">
+                  Blank
+                </abbr>
+              </th>
+              <th className="px-3 py-2 font-semibold">Why</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {sorted.map((p) => (
+              <tr
+                key={p.playerId}
+                className="border-b border-line align-top transition-colors last:border-0 hover:bg-surface-2"
+              >
+                <td className="px-3 py-2.5">
+                  <Name p={p} />
+                  <div className="mt-0.5 text-[11px] tabular-nums text-ink-3">
+                    {p.teamShortName} · {money(p.nowCost)}
+                  </div>
+                </td>
+                <td className="px-3 py-2.5 text-xs text-ink-2">{roleLabel(p)}</td>
+                <td className="w-28 px-3 py-2.5 text-right">
+                  <span className="text-sm font-semibold tabular-nums text-ink">
+                    {points(p.epNextGw)}
+                  </span>
+                  <Bar
+                    value={p.epNextGw}
+                    max={maxGw}
+                    className="mt-1"
+                    color="var(--ink-2)"
+                  />
+                </td>
+                <td className="px-3 py-2.5 text-right text-sm tabular-nums text-ink-2">
+                  {points(p.epHorizon)}
+                </td>
+                {/*
+                  An em dash, not 0%, when the projection carries no distribution. A zero here would
+                  read as "this player never blanks", which is the single most misleading thing this
+                  column could say.
+                */}
+                <td className="px-3 py-2.5 text-right text-sm tabular-nums text-ink-3">
+                  {p.evidence?.pBlank === null ||
+                  p.evidence?.pBlank === undefined ? (
+                    <span title="This projection was written by a model version that carried no distribution">
+                      —
+                    </span>
+                  ) : (
+                    <>
+                      {percent(p.evidence.pBlank)}
+                      {p.evidence.sd !== null && p.evidence.sd !== undefined && (
+                        <span className="block text-[10px] text-ink-3">
+                          ±{p.evidence.sd.toFixed(1)}
+                        </span>
+                      )}
+                    </>
+                  )}
+                </td>
+                <td className="px-3 py-2.5">
+                  <Terms player={p} />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </>
   );
 }

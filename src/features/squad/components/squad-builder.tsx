@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { PositionChip } from '@/components/ui/badge';
+import { PositionChip, StatusBadge } from '@/components/ui/badge';
 import { buttonClass } from '@/components/ui/button';
 import { Card, SectionHeading } from '@/components/ui/card';
 import { Meter } from '@/components/ui/meter';
@@ -16,10 +16,14 @@ import {
 } from '../api/players.api';
 import { messageFor, type Advice } from '../api/squad.api';
 import { AdvicePanel } from './advice-panel';
+import {
+  PlayerSheetProvider,
+  usePlayerSheet,
+} from './player-sheet/player-sheet-context';
 
 /**
- * The one client component in the app, because picking a squad is the one thing here that is
- * genuinely interactive: every other view is server-rendered.
+ * The one large client component in the app, because picking a squad is the one thing here that
+ * is genuinely interactive: every other view is server-rendered.
  *
  * The rules are checked twice on purpose. Locally, so a click gets an answer immediately and the
  * user is never waiting on a round trip to learn they already have five defenders; and on the
@@ -27,9 +31,9 @@ import { AdvicePanel } from './advice-panel';
  * that can be wrong; the server reads prices and positions from the database and is the only one
  * that decides.
  *
- * Layout: the squad state is a rail beside the list on a wide screen and a sticky strip above it on
- * a narrow one. Either way it is on screen while you pick, because "which position am I short of"
- * is the question every single click needs answered.
+ * Layout: the squad state is a rail beside the list on a wide screen; on a narrow one it is a
+ * sticky strip at the bottom edge with the count, the money and the one button, and the full
+ * panel opens from it. Either way "which position am I short of" is answered without scrolling.
  */
 
 const QUOTAS: Record<PlayerListItem['position'], number> = {
@@ -43,15 +47,6 @@ const BUDGET = 1000;
 const CLUB_LIMIT = 3;
 const ORDER: PlayerListItem['position'][] = ['GKP', 'DEF', 'MID', 'FWD'];
 const PAGE = 60;
-
-/** FPL's availability codes. `a` is the only one that needs no explanation, so it gets no chip. */
-const STATUS_LABEL: Record<string, string> = {
-  d: 'Doubtful',
-  i: 'Injured',
-  s: 'Suspended',
-  u: 'Unavailable',
-  n: 'Not in squad',
-};
 
 type Sort = 'ep' | 'price-desc' | 'price-asc' | 'name';
 
@@ -90,7 +85,20 @@ function localIssues(picked: PlayerListItem[]): string[] {
   return issues;
 }
 
-export function SquadBuilder({
+export function SquadBuilder(props: {
+  players: PlayerListItem[];
+  meta: ApiResponseMeta | null;
+  gameweekId: number | null;
+  modelVersion: string | null;
+}) {
+  return (
+    <PlayerSheetProvider>
+      <Builder {...props} />
+    </PlayerSheetProvider>
+  );
+}
+
+function Builder({
   players,
   meta,
   gameweekId,
@@ -101,6 +109,7 @@ export function SquadBuilder({
   gameweekId: number | null;
   modelVersion: string | null;
 }) {
+  const sheet = usePlayerSheet();
   const [pickedIds, setPickedIds] = useState<string[]>([]);
   const [position, setPosition] = useState<PlayerListItem['position'] | 'ALL'>(
     'ALL',
@@ -113,6 +122,7 @@ export function SquadBuilder({
   const [serverIssues, setServerIssues] = useState<string[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [panelOpen, setPanelOpen] = useState(false);
 
   const byId = useMemo(
     () => new Map(players.map((p) => [p.playerId, p])),
@@ -136,15 +146,15 @@ export function SquadBuilder({
   }
 
   const matches = useMemo(() => {
-    const term = search.trim().toLowerCase();
+    const t = search.trim().toLowerCase();
     const filtered = players
       .filter((p) => position === 'ALL' || p.position === position)
       .filter((p) => club === 'ALL' || p.teamShortName === club)
       .filter(
         (p) =>
-          term === '' ||
-          p.webName.toLowerCase().includes(term) ||
-          p.teamShortName.toLowerCase().includes(term),
+          t === '' ||
+          p.webName.toLowerCase().includes(t) ||
+          p.teamShortName.toLowerCase().includes(t),
       );
 
     const sorted = [...filtered];
@@ -195,6 +205,8 @@ export function SquadBuilder({
       const result = await adviseBuiltSquad(pickedIds);
       setAdvice(result.data);
       setAdviceMeta(result.meta);
+      setPanelOpen(false);
+      window.scrollTo({ top: 0 });
     } catch (err) {
       setError(messageFor(err));
     } finally {
@@ -207,7 +219,10 @@ export function SquadBuilder({
       <div className="flex flex-col gap-5">
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight text-ink">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-3">
+              Built by hand · advising gameweek {advice.gameweekId}
+            </p>
+            <h1 className="mt-1 text-2xl font-semibold tracking-tight text-ink sm:text-3xl">
               Your squad
             </h1>
             <Provenance
@@ -230,24 +245,24 @@ export function SquadBuilder({
     );
   }
 
+  const remaining = SQUAD_SIZE - picked.length;
+  const ctaLabel = busy
+    ? 'Checking…'
+    : complete
+      ? 'Get advice on this squad'
+      : `${remaining} more to pick`;
+
   const squadPanel = (
     <div className="flex flex-col gap-3">
-      <Meter
-        label={`Squad · ${money(BUDGET - spend)} left`}
-        value={picked.length}
-        max={SQUAD_SIZE}
-        display={`${picked.length}/${SQUAD_SIZE}`}
-        tone={complete ? 'good' : 'neutral'}
-      />
       <Meter
         label="Budget"
         value={spend}
         max={BUDGET}
-        display={`${money(spend)} / ${money(BUDGET)}`}
+        display={`${money(spend)} of ${money(BUDGET)}`}
         tone={spend > BUDGET ? 'bad' : spend > BUDGET * 0.95 ? 'warn' : 'neutral'}
       />
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-4 gap-2">
         {ORDER.map((pos) => {
           const have = picked.filter((p) => p.position === pos).length;
           return (
@@ -286,24 +301,31 @@ export function SquadBuilder({
               <div key={pos} className="flex flex-wrap items-center gap-1">
                 <PositionChip position={pos} className="mr-0.5" />
                 {line.map((p) => (
-                  <button
+                  <span
                     key={p.playerId}
-                    type="button"
-                    onClick={() => toggle(p.playerId)}
-                    title={`Remove ${p.webName}`}
                     className={cx(
-                      'inline-flex items-center gap-1 rounded-full border border-line bg-surface-2 px-2 py-0.5',
-                      'text-[11px] text-ink hover:border-line-strong hover:bg-surface-3',
+                      'inline-flex items-center overflow-hidden rounded-full border border-line bg-surface-2 text-[11px] text-ink',
                       (clubCounts.get(p.teamShortName) ?? 0) > CLUB_LIMIT &&
                         'border-bad text-bad',
                     )}
                   >
-                    {p.webName}
-                    <span aria-hidden className="text-ink-3">
+                    <button
+                      type="button"
+                      onClick={() => sheet.open(p.playerId)}
+                      className="py-0.5 pl-2 pr-1 hover:bg-surface-3"
+                      aria-label={`Open ${p.webName}`}
+                    >
+                      {p.webName}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => toggle(p.playerId)}
+                      className="border-l border-line px-1.5 py-0.5 text-ink-3 hover:bg-surface-3 hover:text-ink"
+                      aria-label={`Remove ${p.webName}`}
+                    >
                       ×
-                    </span>
-                    <span className="sr-only">remove</span>
-                  </button>
+                    </button>
+                  </span>
                 ))}
               </div>
             );
@@ -341,33 +363,28 @@ export function SquadBuilder({
         type="button"
         onClick={submit}
         disabled={!complete || busy}
-        title={
-          complete
-            ? undefined
-            : `Pick ${SQUAD_SIZE - picked.length} more player${SQUAD_SIZE - picked.length === 1 ? '' : 's'}`
-        }
+        title={complete ? undefined : `Pick ${remaining} more player${remaining === 1 ? '' : 's'}`}
         className={buttonClass({ className: 'w-full' })}
       >
-        {busy
-          ? 'Checking…'
-          : complete
-            ? 'Get advice on this squad'
-            : `${SQUAD_SIZE - picked.length} more to pick`}
+        {ctaLabel}
       </button>
     </div>
   );
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-5 pb-24 lg:pb-0">
       <header>
-        <h1 className="text-2xl font-semibold tracking-tight text-ink">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-3">
+          Build by hand{gameweekId ? ` · for gameweek ${gameweekId}` : ''}
+        </p>
+        <h1 className="mt-1 text-2xl font-semibold tracking-tight text-ink sm:text-3xl">
           Build a squad
         </h1>
         <p className="mt-1 max-w-2xl text-sm leading-6 text-ink-2">
           Fifteen players, {money(BUDGET)}, two keepers, five defenders, five
           midfielders, three forwards, and at most {CLUB_LIMIT} from any one
           club. The projection beside each price is this app&apos;s model, not
-          FPL&apos;s.
+          FPL&apos;s — tap a name for the case behind it.
         </p>
         <Provenance
           className="mt-2"
@@ -377,13 +394,13 @@ export function SquadBuilder({
         />
       </header>
 
-      <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_20rem]">
+      <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_21rem]">
         <div className="flex flex-col gap-3">
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
             <div
               role="group"
               aria-label="Filter by position"
-              className="flex gap-1 rounded-lg bg-surface-2 p-0.5"
+              className="scroll-x flex gap-1 rounded-full bg-surface-2 p-1"
             >
               {(['ALL', ...ORDER] as const).map((pos) => (
                 <button
@@ -392,7 +409,7 @@ export function SquadBuilder({
                   onClick={() => setPosition(pos)}
                   aria-pressed={position === pos}
                   className={cx(
-                    'rounded-md px-2.5 py-1 text-xs font-medium transition-colors',
+                    'h-8 flex-1 rounded-full px-3 text-xs font-semibold transition-colors sm:flex-none',
                     position === pos
                       ? 'bg-surface text-ink shadow-[var(--shadow-card)]'
                       : 'text-ink-2 hover:text-ink',
@@ -403,52 +420,49 @@ export function SquadBuilder({
               ))}
             </div>
 
-            <label className="sr-only" htmlFor="club-filter">
-              Club
-            </label>
-            <select
-              id="club-filter"
-              value={club}
-              onChange={(e) => setClub(e.target.value)}
-              className="rounded-lg border border-line-strong bg-surface px-2 py-1.5 text-xs text-ink"
-            >
-              <option value="ALL">All clubs</option>
-              {clubs.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-            </select>
+            <div className="flex gap-2">
+              <label className="sr-only" htmlFor="club-filter">
+                Club
+              </label>
+              <select
+                id="club-filter"
+                value={club}
+                onChange={(e) => setClub(e.target.value)}
+                className="h-9 flex-1 rounded-full border border-line bg-surface px-3 text-xs text-ink sm:flex-none"
+              >
+                <option value="ALL">All clubs</option>
+                {clubs.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
 
-            <label className="sr-only" htmlFor="sort-by">
-              Sort by
-            </label>
-            <select
-              id="sort-by"
-              value={sort}
-              onChange={(e) => setSort(e.target.value as Sort)}
-              className="rounded-lg border border-line-strong bg-surface px-2 py-1.5 text-xs text-ink"
-            >
-              {(Object.keys(SORT_LABEL) as Sort[]).map((s) => (
-                <option key={s} value={s}>
-                  {SORT_LABEL[s]}
-                </option>
-              ))}
-            </select>
+              <label className="sr-only" htmlFor="sort-by">
+                Sort by
+              </label>
+              <select
+                id="sort-by"
+                value={sort}
+                onChange={(e) => setSort(e.target.value as Sort)}
+                className="h-9 flex-1 rounded-full border border-line bg-surface px-3 text-xs text-ink sm:flex-none"
+              >
+                {(Object.keys(SORT_LABEL) as Sort[]).map((s) => (
+                  <option key={s} value={s}>
+                    {SORT_LABEL[s]}
+                  </option>
+                ))}
+              </select>
+            </div>
 
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search name or club"
               aria-label="Search players"
-              className="min-w-40 flex-1 rounded-lg border border-line-strong bg-surface px-3 py-1.5 text-sm text-ink placeholder:text-ink-3"
+              className="h-9 min-w-40 flex-1 rounded-full border border-line bg-surface px-4 text-sm text-ink placeholder:text-ink-3"
             />
           </div>
-
-          {/* On a narrow screen the rail moves above the list and stays in view while you pick. */}
-          <Card className="lg:hidden" padded>
-            {squadPanel}
-          </Card>
 
           <Card padded={false} className="overflow-hidden">
             <table className="w-full text-left text-sm">
@@ -456,13 +470,13 @@ export function SquadBuilder({
                 Players matching the current filters
               </caption>
               <thead>
-                <tr className="border-b border-line text-[10px] uppercase tracking-wider text-ink-3">
-                  <th className="px-3 py-2 font-medium">Player</th>
-                  <th className="px-2 py-2 text-right font-medium">Price</th>
-                  <th className="px-2 py-2 text-right font-medium">
+                <tr className="border-b border-line bg-surface-2 text-[10px] uppercase tracking-wider text-ink-3">
+                  <th className="px-3 py-2 font-semibold">Player</th>
+                  <th className="px-2 py-2 text-right font-semibold">Price</th>
+                  <th className="px-2 py-2 text-right font-semibold">
                     <abbr title="Projected points, this gameweek">xP</abbr>
                   </th>
-                  <th className="hidden px-2 py-2 text-right font-medium sm:table-cell">
+                  <th className="hidden px-2 py-2 text-right font-semibold sm:table-cell">
                     Plays
                   </th>
                   <th className="px-2 py-2" />
@@ -481,28 +495,27 @@ export function SquadBuilder({
                       )}
                     >
                       <td className="px-3 py-2">
-                        <div className="flex flex-wrap items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => sheet.open(p.playerId)}
+                          aria-label={`Open ${p.webName}`}
+                          aria-haspopup="dialog"
+                          className="flex flex-wrap items-center gap-1.5 rounded-md text-left hover:underline underline-offset-2"
+                        >
                           <PositionChip position={p.position} />
-                          <span className="font-medium text-ink">
+                          <span className="font-semibold text-ink">
                             {p.webName}
                           </span>
                           <span className="text-xs text-ink-3">
                             {p.teamShortName}
                           </span>
-                          {p.status !== 'a' && (
-                            <span
-                              title={p.news || undefined}
-                              className="rounded bg-[color-mix(in_oklab,var(--warn)_16%,transparent)] px-1.5 py-0.5 text-[10px] font-medium text-warn"
-                            >
-                              {STATUS_LABEL[p.status] ?? p.status}
-                            </span>
-                          )}
-                        </div>
+                          <StatusBadge status={p.status} news={p.news} />
+                        </button>
                       </td>
                       <td className="px-2 py-2 text-right tabular-nums text-ink-2">
                         {money(p.nowCost)}
                       </td>
-                      <td className="px-2 py-2 text-right font-medium tabular-nums text-ink">
+                      <td className="px-2 py-2 text-right font-semibold tabular-nums text-ink">
                         {/* null is not zero: the model has not projected this player. */}
                         {p.epNextGw === null ? '—' : points(p.epNextGw)}
                       </td>
@@ -526,6 +539,7 @@ export function SquadBuilder({
                           className={buttonClass({
                             variant: isPicked ? 'primary' : 'secondary',
                             size: 'sm',
+                            className: 'min-w-[4.5rem]',
                           })}
                         >
                           {isPicked ? 'Remove' : 'Add'}
@@ -538,7 +552,7 @@ export function SquadBuilder({
             </table>
 
             {matches.length === 0 && (
-              <p className="px-3 py-6 text-center text-sm text-ink-3">
+              <p className="px-3 py-8 text-center text-sm text-ink-3">
                 Nobody matches that. Try clearing the club filter or the search.
               </p>
             )}
@@ -552,14 +566,61 @@ export function SquadBuilder({
           )}
         </div>
 
-        <Card className="hidden lg:sticky lg:top-16 lg:block">
+        <Card className="hidden lg:sticky lg:top-20 lg:block">
           <SectionHeading
             title="Your squad"
             subtitle="Legality is checked here as you pick, and again on the server before any advice."
             level={3}
+            aside={
+              <span className="tabular-nums">
+                {picked.length}/{SQUAD_SIZE}
+              </span>
+            }
           />
           <div className="mt-3">{squadPanel}</div>
         </Card>
+      </div>
+
+      {/* Phones and tablets: the state as a strip at the bottom edge, the full panel on demand. */}
+      <div className="fixed inset-x-0 bottom-14 z-20 border-t border-line bg-surface/95 backdrop-blur-md md:bottom-0 lg:hidden">
+        <div className="mx-auto flex max-w-6xl items-center gap-3 px-4 py-2.5 sm:px-6">
+          <button
+            type="button"
+            onClick={() => setPanelOpen((o) => !o)}
+            aria-expanded={panelOpen}
+            className="flex min-w-0 flex-1 flex-col items-start text-left"
+          >
+            <span className="text-sm font-semibold tabular-nums text-ink">
+              {picked.length}/{SQUAD_SIZE} picked
+              <span className="ml-2 font-normal text-ink-3">
+                {money(BUDGET - spend)} left
+              </span>
+            </span>
+            <span
+              className={cx(
+                'text-[11px]',
+                issues.length > 0 ? 'text-warn' : 'text-ink-3',
+              )}
+            >
+              {issues.length > 0
+                ? issues[0]
+                : `${points(projected)} pts projected · ${panelOpen ? 'hide' : 'show'} squad`}
+            </span>
+          </button>
+          <button
+            type="button"
+            onClick={submit}
+            disabled={!complete || busy}
+            className={buttonClass({ size: 'md', className: 'shrink-0' })}
+          >
+            {complete ? (busy ? 'Checking…' : 'Get advice') : `${remaining} more`}
+          </button>
+        </div>
+        {panelOpen && (
+          <div className="mx-auto max-h-[60dvh] max-w-6xl overflow-y-auto border-t border-line px-4 py-3 sm:px-6">
+            {squadPanel}
+          </div>
+        )}
       </div>
     </div>
   );

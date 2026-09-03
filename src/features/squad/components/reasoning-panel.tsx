@@ -3,6 +3,7 @@ import { Card, SectionHeading } from '@/components/ui/card';
 import { Note } from '@/components/ui/note';
 import { points } from '@/lib/format';
 import type { Advice } from '../api/squad.api';
+import { PlayerTrigger } from './player-sheet/player-trigger';
 
 /**
  * What the optimizer **refused**, and what it paid for what it kept.
@@ -67,13 +68,13 @@ export function ReasoningPanel({ advice }: { advice: Advice }) {
                     key={p.playerId}
                     className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-line bg-surface-2 px-2.5 py-1.5 text-xs"
                   >
-                    <span className="flex min-w-0 items-center gap-2">
+                    <PlayerTrigger playerId={p.playerId} name={p.webName} className="min-w-0 gap-2 hover:underline underline-offset-2">
                       <PositionChip position={p.position} />
                       <span className="truncate font-medium text-ink">
                         {p.webName}
                       </span>
                       <span className="text-ink-3">{p.teamShortName}</span>
-                    </span>
+                    </PlayerTrigger>
                     <span className="text-ink-3">
                       {p.appearances}{' '}
                       {p.appearances === 1 ? 'appearance' : 'appearances'} ·{' '}

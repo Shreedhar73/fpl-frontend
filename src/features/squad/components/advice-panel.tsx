@@ -6,6 +6,7 @@ import { Stat } from '@/components/ui/stat';
 import { delta, money, percent, points } from '@/lib/format';
 import type { Advice, AdvicePlayer, SquadDifference } from '../api/squad.api';
 import { PlayerTable } from './player-table';
+import { PlayerTrigger } from './player-sheet/player-trigger';
 import { ReasoningPanel } from './reasoning-panel';
 
 /**
@@ -56,8 +57,12 @@ export function CaptainCard({ advice }: { advice: Advice }) {
             Captain · gameweek {advice.gameweekId}
           </p>
           <div className="mt-1 flex flex-wrap items-center gap-2">
-            <h2 className="text-2xl font-semibold tracking-tight text-ink">
-              {captain.webName}
+            {/* The trigger sits inside the heading, not around it: a button's aria-label would
+                replace the h2's text and the page would lose its captain heading to a reader. */}
+            <h2 className="text-2xl font-semibold tracking-tight text-ink sm:text-3xl">
+              <PlayerTrigger playerId={captain.playerId} name={captain.webName} className="rounded-lg hover:underline underline-offset-4">
+                {captain.webName}
+              </PlayerTrigger>
             </h2>
             <PositionChip position={captain.position} />
             <span className="text-xs text-ink-3">
@@ -122,7 +127,10 @@ export function CaptainCard({ advice }: { advice: Advice }) {
 
       {vice && (
         <p className="mt-4 border-t border-line pt-3 text-xs text-ink-2">
-          <span className="font-medium text-ink">Vice: {vice.webName}</span> —
+          <PlayerTrigger playerId={vice.playerId} name={vice.webName} className="font-medium text-ink hover:underline underline-offset-2">
+            Vice: {vice.webName}
+          </PlayerTrigger>{' '}
+          —
           takes the armband automatically if {captain.webName} does not start,
           at{' '}
           <span className="tabular-nums">{points(vice.epNextGw)}</span> projected
@@ -151,9 +159,9 @@ function DifferenceList({
         {players.slice(0, 6).map((p) => (
           <li
             key={p.playerId}
-            className="flex items-center justify-between gap-2 rounded-lg border border-line bg-surface-2 px-2 py-1.5"
+            className="flex items-center justify-between gap-2 rounded-xl border border-line bg-surface-2 px-2 py-1.5"
           >
-            <span className="flex min-w-0 items-center gap-1.5">
+            <PlayerTrigger playerId={p.playerId} name={p.webName} className="min-w-0 gap-1.5 rounded-md hover:underline underline-offset-2">
               <PositionChip position={p.position} />
               <span className="truncate text-xs font-medium text-ink">
                 {p.webName}
@@ -161,7 +169,7 @@ function DifferenceList({
               <span className="shrink-0 text-[11px] tabular-nums text-ink-3">
                 {p.teamShortName} · {money(p.nowCost)}
               </span>
-            </span>
+            </PlayerTrigger>
             <span
               className={`shrink-0 text-xs font-semibold tabular-nums ${
                 tone === 'in' ? 'text-good' : 'text-ink-3'
@@ -317,7 +325,7 @@ export function RosterSection({ players }: { players: AdvicePlayer[] }) {
     <section aria-label="Squad roster" className="flex flex-col gap-3">
       <SectionHeading
         title="Every player, and why"
-        subtitle="Projected points for the coming gameweek and across the horizon, with the terms the projection is made of."
+        subtitle="Projected points for the coming gameweek and across the horizon, with the terms the projection is made of. Tap a name for the full case."
       />
       <PlayerTable players={players} />
     </section>

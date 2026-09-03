@@ -5,16 +5,15 @@
 export function SiteFooter() {
   return (
     <footer className="mt-12 border-t border-line">
-      <div className="mx-auto w-full max-w-6xl px-4 py-6 text-xs leading-5 text-ink-3 sm:px-6">
+      <div className="mx-auto flex w-full max-w-6xl flex-col gap-1 px-4 py-6 text-xs leading-5 text-ink-3 sm:px-6">
         <p>
           Built on the public Fantasy Premier League API. No account, no login,
-          nothing stored about you — a team id is a public number, not an
-          identity.
+          nothing stored about you beyond what your own browser remembers.
         </p>
-        <p className="mt-1">
+        <p>
           Projections are this app&apos;s own model, not FPL&apos;s. Every number
-          on screen carries the gameweek it was computed from; where the model
-          cannot know something, the page says so instead of guessing.
+          carries the gameweek it was computed from, and where the model cannot
+          know something the page says so.
         </p>
       </div>
     </footer>

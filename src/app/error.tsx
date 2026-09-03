@@ -19,32 +19,27 @@ export default function GlobalError({
 }) {
   return (
     <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-16 sm:px-6">
-      <h1 className="text-xl font-semibold tracking-tight text-ink">
-        This page could not be rendered
-      </h1>
-      <p className="mt-2 text-sm leading-6 text-ink-2">
-        Something failed while building the view. The data may be fine — trying
-        again is worth one attempt before anything else.
-      </p>
-      {error.digest && (
-        <p className="mt-2 font-mono text-[11px] text-ink-3">
-          reference {error.digest}
+      <div className="rounded-3xl border border-line bg-surface p-6 shadow-[var(--shadow-card)]">
+        <h1 className="text-xl font-semibold tracking-tight text-ink">
+          This page could not be rendered
+        </h1>
+        <p className="mt-2 text-sm leading-6 text-ink-2">
+          Something failed while building the view. The data may be fine — trying
+          again is worth one attempt before anything else.
         </p>
-      )}
-      <div className="mt-5 flex flex-wrap gap-2">
-        <button
-          type="button"
-          onClick={reset}
-          className={buttonClass({ size: 'sm' })}
-        >
-          Try again
-        </button>
-        <Link
-          href="/"
-          className={buttonClass({ variant: 'secondary', size: 'sm' })}
-        >
-          Start again
-        </Link>
+        {error.digest && (
+          <p className="mt-2 font-mono text-[11px] text-ink-3">
+            reference {error.digest}
+          </p>
+        )}
+        <div className="mt-5 flex flex-wrap gap-2">
+          <button type="button" onClick={reset} className={buttonClass({ size: 'sm' })}>
+            Try again
+          </button>
+          <Link href="/" className={buttonClass({ variant: 'secondary', size: 'sm' })}>
+            Start again
+          </Link>
+        </div>
       </div>
     </main>
   );

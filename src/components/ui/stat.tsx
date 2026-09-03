@@ -12,6 +12,7 @@ export function Stat({
   hint,
   tone = 'neutral',
   className,
+  size = 'md',
 }: {
   label: string;
   value: ReactNode;
@@ -19,6 +20,7 @@ export function Stat({
   hint?: ReactNode;
   tone?: 'neutral' | 'good' | 'warn' | 'bad';
   className?: string;
+  size?: 'sm' | 'md';
 }) {
   const valueColor =
     tone === 'good'
@@ -32,17 +34,19 @@ export function Stat({
   return (
     <div
       className={cx(
-        'rounded-xl border border-line bg-surface p-3 shadow-[var(--shadow-card)]',
+        'rounded-2xl border border-line bg-surface shadow-[var(--shadow-card)]',
+        size === 'sm' ? 'p-2.5' : 'p-3 sm:p-4',
         className,
       )}
     >
-      <dt className="text-[10px] font-medium uppercase tracking-wider text-ink-3">
+      <dt className="text-[10px] font-semibold uppercase tracking-wider text-ink-3">
         {label}
       </dt>
       <dd className="mt-1 flex items-baseline gap-1">
         <span
           className={cx(
-            'truncate text-xl font-semibold tabular-nums tracking-tight',
+            'truncate font-semibold tabular-nums tracking-tight',
+            size === 'sm' ? 'text-lg' : 'text-xl sm:text-2xl',
             valueColor,
           )}
         >
