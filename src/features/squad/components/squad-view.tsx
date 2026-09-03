@@ -143,10 +143,12 @@ export function SquadView({
           </div>
         )}
         <div id="compare" className="scroll-mt-28">
+          {/* The recommended squad has no owner and nothing to plan from, and its page fetches no
+              plan — so no slot there, rather than a note about a fetch nobody made. */}
           <ComparisonCard
             advice={advice}
             planSlot={
-              transferPlan ? (
+              isRecommended ? undefined : transferPlan ? (
                 <>
                   <a
                     href="#transfers"
