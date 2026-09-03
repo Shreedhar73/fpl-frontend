@@ -5,6 +5,11 @@
   reaches for a raw Tailwind palette class (`zinc-800`, `emerald-600`) is bypassing dark mode, since
   the schemes differ by more than a lightness flip.
 
+  Three states, not two. A stored choice stamps `data-theme="light"` or `"dark"` on <html> before
+  first paint (the inline script in layout.tsx); nothing stamped means "follow the system". So the
+  dark tokens are declared twice, once under the media query guarded against an explicit light
+  choice and once under the explicit dark choice, and the two blocks are kept identical by hand.
+
   The four position hues are validated, not chosen by eye: run through the `dataviz` validator on
   both surfaces with `--pairs all` on 2026-08-26.
 
@@ -20,12 +25,13 @@
 :root {
   color-scheme: light;
 
-  --canvas: #f4f6f8;
+  --canvas: #f3f5f8;
+  --canvas-glow: rgb(29 122 76 / 0.1);
   --surface: #ffffff;
-  --surface-2: #f2f4f7;
-  --surface-3: #e9edf1;
-  --line: #e1e6ec;
-  --line-strong: #c9d1da;
+  --surface-2: #f3f5f8;
+  --surface-3: #e8ecf1;
+  --line: #e2e7ed;
+  --line-strong: #c7d0da;
 
   --ink: #0e141b;
   --ink-2: #4a5563;
@@ -45,12 +51,15 @@
   --mid: #009e73;
   --fwd: #cc79a7;
 
-  --turf-a: #1d7a4c;
-  --turf-b: #196b43;
-  --turf-line: rgb(255 255 255 / 0.28);
+  --turf-a: #1f8352;
+  --turf-b: #1b7449;
+  --turf-line: rgb(255 255 255 / 0.3);
 
-  --shadow-card: 0 1px 2px rgb(14 20 27 / 0.05), 0 1px 3px rgb(14 20 27 / 0.06);
+  --scrim: rgb(14 20 27 / 0.45);
+
+  --shadow-card: 0 1px 2px rgb(14 20 27 / 0.04), 0 1px 3px rgb(14 20 27 / 0.06);
   --shadow-raised: 0 6px 16px -6px rgb(14 20 27 / 0.18), 0 2px 4px rgb(14 20 27 / 0.06);
+  --shadow-sheet: 0 -12px 40px -12px rgb(14 20 27 / 0.35), 0 24px 60px -20px rgb(14 20 27 / 0.35);
 
   /* System stacks, not next/font/google: Next fetches Google Fonts at build and dev time, and a
      machine that cannot reach fonts.gstatic.com gets a 500 on every page. */
@@ -61,23 +70,25 @@
     ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
 }
 
+/* ── Dark, block 1 of 2: the system says dark and no explicit light choice overrides it. ── */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     color-scheme: dark;
 
-    --canvas: #0c1116;
-    --surface: #141a21;
-    --surface-2: #1b222b;
-    --surface-3: #232b35;
-    --line: #262f3a;
-    --line-strong: #3a4553;
+    --canvas: #0b1015;
+    --canvas-glow: rgb(29 122 76 / 0.16);
+    --surface: #131920;
+    --surface-2: #1a212a;
+    --surface-3: #222b35;
+    --line: #242d38;
+    --line-strong: #384452;
 
     --ink: #eef2f6;
     --ink-2: #a7b2c0;
     --ink-3: #7d8896;
 
     --accent: #eef2f6;
-    --accent-ink: #0c1116;
+    --accent-ink: #0b1015;
     --focus: #6cb6e8;
 
     --good: #33b184;
@@ -89,13 +100,56 @@
     --mid: #0f9070;
     --fwd: #c06a9a;
 
-    --turf-a: #16532f;
-    --turf-b: #12452a;
+    --turf-a: #17583a;
+    --turf-b: #134a31;
     --turf-line: rgb(255 255 255 / 0.16);
+
+    --scrim: rgb(0 0 0 / 0.6);
 
     --shadow-card: 0 1px 2px rgb(0 0 0 / 0.4);
     --shadow-raised: 0 8px 24px -8px rgb(0 0 0 / 0.6);
+    --shadow-sheet: 0 -12px 40px -12px rgb(0 0 0 / 0.7), 0 24px 60px -20px rgb(0 0 0 / 0.7);
   }
+}
+
+/* ── Dark, block 2 of 2: an explicit dark choice, whatever the system says. Identical values. ── */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --canvas: #0b1015;
+  --canvas-glow: rgb(29 122 76 / 0.16);
+  --surface: #131920;
+  --surface-2: #1a212a;
+  --surface-3: #222b35;
+  --line: #242d38;
+  --line-strong: #384452;
+
+  --ink: #eef2f6;
+  --ink-2: #a7b2c0;
+  --ink-3: #7d8896;
+
+  --accent: #eef2f6;
+  --accent-ink: #0b1015;
+  --focus: #6cb6e8;
+
+  --good: #33b184;
+  --warn: #d09a3a;
+  --bad: #e26a7f;
+
+  --gkp: #d55e00;
+  --def: #3b93db;
+  --mid: #0f9070;
+  --fwd: #c06a9a;
+
+  --turf-a: #17583a;
+  --turf-b: #134a31;
+  --turf-line: rgb(255 255 255 / 0.16);
+
+  --scrim: rgb(0 0 0 / 0.6);
+
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.4);
+  --shadow-raised: 0 8px 24px -8px rgb(0 0 0 / 0.6);
+  --shadow-sheet: 0 -12px 40px -12px rgb(0 0 0 / 0.7), 0 24px 60px -20px rgb(0 0 0 / 0.7);
 }
 
 @theme inline {
@@ -127,17 +181,30 @@
   --font-mono: var(--font-app-mono);
 }
 
+html {
+  scroll-padding-top: 7rem;
+}
+
 body {
   background: var(--canvas);
   color: var(--ink);
   font-family: var(--font-app-sans);
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* A soft turf-coloured glow behind the top of every page. Decorative, and the one place a hue is
+   used for nothing but warmth — it is a tint of the pitch, not a data colour. */
+.canvas-glow {
+  background:
+    radial-gradient(60rem 24rem at 50% -8rem, var(--canvas-glow), transparent 70%),
+    var(--canvas);
 }
 
 /* One focus treatment everywhere, including the keyboard path through the builder's 60-row table. */
 :where(a, button, input, select, summary, [tabindex]):focus-visible {
   outline: 2px solid var(--focus);
   outline-offset: 2px;
-  border-radius: 4px;
+  border-radius: 6px;
 }
 
 /*
@@ -146,7 +213,7 @@ body {
 */
 .pitch {
   background:
-    linear-gradient(rgb(0 0 0 / 0.06), rgb(0 0 0 / 0.06)),
+    radial-gradient(80% 60% at 50% 100%, rgb(0 0 0 / 0.14), transparent 70%),
     repeating-linear-gradient(
       to bottom,
       var(--turf-a) 0 7.5%,
@@ -170,14 +237,27 @@ body {
   top: 0;
   width: min(58%, 24rem);
   height: 4.5rem;
-  border-radius: 0 0 4px 4px;
+  border-radius: 0 0 6px 6px;
 }
 
 .pitch-markings::after {
   top: 0;
   width: min(30%, 12rem);
   height: 2.25rem;
-  border-radius: 0 0 4px 4px;
+  border-radius: 0 0 6px 6px;
+}
+
+/* The touchline that closes the pitch at the bottom, and the centre circle. */
+.pitch-centre {
+  position: absolute;
+  left: 50%;
+  bottom: -3.5rem;
+  width: 7rem;
+  height: 7rem;
+  transform: translateX(-50%);
+  border: 2px solid var(--turf-line);
+  border-radius: 9999px;
+  pointer-events: none;
 }
 
 /* A bar whose width is a share of a maximum. Kept in CSS so the value can be an inline custom
@@ -185,6 +265,113 @@ body {
 .bar-fill {
   width: calc(var(--fill) * 100%);
   min-width: 2px;
+}
+
+/* A bar whose HEIGHT is a share of a maximum — the horizon strip in the player sheet. */
+.bar-fill-v {
+  height: calc(var(--fill) * 100%);
+  min-height: 2px;
+}
+
+/*
+  The player sheet. A native <dialog>: focus trapping, Escape and focus return come with it. Below
+  `sm` it rises from the bottom edge; from `sm` up it is a centred panel. `::backdrop` does not
+  reliably inherit custom properties from :root, so the scrim is a literal in each scheme, set on
+  the dialog itself via --scrim and read here through the element rather than the root.
+*/
+.sheet {
+  border: 0;
+  padding: 0;
+  margin: auto auto 0;
+  width: 100%;
+  max-width: 100%;
+  max-height: 92dvh;
+  background: var(--surface);
+  color: var(--ink);
+  border-radius: 1.25rem 1.25rem 0 0;
+  box-shadow: var(--shadow-sheet);
+  overflow: hidden;
+  overscroll-behavior: contain;
+}
+
+.sheet::backdrop {
+  background: rgb(14 20 27 / 0.45);
+  backdrop-filter: blur(2px);
+}
+
+:root[data-theme="dark"] .sheet::backdrop {
+  background: rgb(0 0 0 / 0.6);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .sheet::backdrop {
+    background: rgb(0 0 0 / 0.6);
+  }
+}
+
+.sheet[open] {
+  animation: sheet-rise 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@keyframes sheet-rise {
+  from {
+    transform: translateY(2rem);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@media (min-width: 640px) {
+  .sheet {
+    margin: auto;
+    width: min(44rem, calc(100% - 2rem));
+    max-height: min(88dvh, 52rem);
+    border-radius: 1.25rem;
+  }
+
+  .sheet[open] {
+    animation-name: sheet-pop;
+  }
+
+  @keyframes sheet-pop {
+    from {
+      transform: translateY(0.75rem) scale(0.98);
+      opacity: 0;
+    }
+    to {
+      transform: none;
+      opacity: 1;
+    }
+  }
+}
+
+/* Horizontal scrollers that hide their bar: the section nav, the builder's position control. */
+.scroll-x {
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.scroll-x::-webkit-scrollbar {
+  display: none;
+}
+
+/* Room for the bottom navigation on phones, plus the device's own inset. */
+.pb-nav {
+  padding-bottom: calc(4rem + env(safe-area-inset-bottom, 0px));
+}
+
+@media (min-width: 768px) {
+  .pb-nav {
+    padding-bottom: 0;
+  }
+}
+
+.safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 @media (prefers-reduced-motion: reduce) {

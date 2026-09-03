@@ -10,16 +10,19 @@ export function Card({
   className,
   as: Tag = 'div',
   padded = true,
+  id,
 }: {
   children: ReactNode;
   className?: string;
   as?: 'div' | 'section' | 'article' | 'aside';
   padded?: boolean;
+  id?: string;
 }) {
   return (
     <Tag
+      id={id}
       className={cx(
-        'rounded-xl border border-line bg-surface shadow-[var(--shadow-card)]',
+        'rounded-2xl border border-line bg-surface shadow-[var(--shadow-card)]',
         padded && 'p-4 sm:p-5',
         className,
       )}
@@ -35,20 +38,27 @@ export function SectionHeading({
   subtitle,
   aside,
   level = 2,
+  eyebrow,
 }: {
   title: ReactNode;
   subtitle?: ReactNode;
   aside?: ReactNode;
   level?: 2 | 3;
+  eyebrow?: ReactNode;
 }) {
   const Tag = level === 2 ? 'h2' : 'h3';
   return (
     <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-1">
-      <div>
+      <div className="min-w-0">
+        {eyebrow && (
+          <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-ink-3">
+            {eyebrow}
+          </p>
+        )}
         <Tag
           className={cx(
             'font-semibold tracking-tight text-ink',
-            level === 2 ? 'text-base' : 'text-sm',
+            level === 2 ? 'text-base sm:text-lg' : 'text-sm',
           )}
         >
           {title}

@@ -38,9 +38,22 @@ Things a fresh read of the code will not tell you, and that are expensive to get
   (`lsof -nP -i :4000`) before assuming an application error — the message Next prints does not name
   the holder.
 - **The JS budget is feature JS: the route total minus the framework floor.** The floor is 172.9 KB
-  gzipped (`fpl-performance-budget`), the budget above it is 30 KB, and on 2026-08-26 the routes
-  measured 0.9 KB (`/`), 1.2 KB (`/squad/recommended`) and 9.0 KB (`/squad/build`). A charting
-  library would spend the lot on its own; the bars and meters here are `div`s.
+  gzipped (`fpl-performance-budget`), the budget above it is 30 KB. On 2026-09-03, with the player
+  sheet, the theme toggle and the bottom navigation on every route, the routes measured 3.4 KB (`/`),
+  10.0 KB (`/squad/recommended` and `/squad/<id>`) and 16.8 KB (`/squad/build`). A charting library
+  would spend the lot on its own; the bars and meters here are `div`s.
+- **Tapping a player anywhere opens the player sheet** (plan 030): `PlayerSheetProvider` is mounted
+  once per view, `PlayerTrigger` is the client leaf that wraps server-rendered markup, and the sheet
+  fetches `GET /api/players/{id}` on open through `getPlayerDetail` with a per-page `Map` cache. No
+  TanStack Query — it is not installed, and the cache is the right size for one fetch per tap. A new
+  place that shows a player's name wraps it in `PlayerTrigger`; outside a provider the trigger renders
+  its children unwrapped.
+- **The colour scheme has three states**, not two: nothing stored (follow the system), `light`, `dark`.
+  An inline script in `layout.tsx` stamps `data-theme` before first paint, so `<html>` carries
+  `suppressHydrationWarning`, and the dark tokens in `globals.css` are declared twice — under the
+  media query guarded by `:root:not([data-theme="light"])` and under `:root[data-theme="dark"]`. Keep
+  the two blocks identical. Anything that reads the browser (theme, the remembered team ids) goes
+  through `useSyncExternalStore` with a server snapshot, never an effect that sets state.
 
 ## The design system
 
@@ -57,8 +70,9 @@ validator is re-run before any of those six values changes (D-019).
 
 ## Layering
 
-Server component → (if interactive) client component → TanStack Query hook → api function →
-`apiClient`. Data never skips a layer. Feature slices live in `src/features/<feature>/` with
+Server component → (if interactive) client component → api function → `apiClient`. Data never
+skips a layer. (The contract names a TanStack Query hook between the two; it is not installed and
+nothing here has needed it yet — the builder and the player sheet call the api functions directly.) Feature slices live in `src/features/<feature>/` with
 `api/`, `hooks/`, `components/`, `schemas/`, `types/`, `utils/`. A feature does not import another
 feature's internals; shared code goes to `src/lib/`, `src/components/`, `src/hooks/`.
 

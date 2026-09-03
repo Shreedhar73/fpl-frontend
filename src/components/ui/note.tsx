@@ -20,7 +20,7 @@ export function Note({
   return (
     <div
       className={cx(
-        'rounded-xl p-3 text-xs leading-5',
+        'rounded-2xl p-3.5 text-xs leading-5',
         tone === 'info' && 'border border-line bg-surface-2 text-ink-2',
         tone === 'limit' && 'border border-dashed border-line-strong text-ink-2',
         tone === 'warn' &&

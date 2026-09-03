@@ -201,6 +201,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/players/{playerId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * One player, whole: projections over the horizon, fixtures, form and availability.
+         * @description The payload behind the player sheet. Projections are the served model’s, one per horizon gameweek, each with that gameweek’s fixtures and difficulty from the player’s side; `projections` is empty, not zeros, for a player the model has not reached.
+         */
+        get: operations["PlayersController_detail"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -332,6 +352,12 @@ export interface components {
             teamShortName: string;
             /** @description Market price in tenths of a million. */
             nowCost: number;
+            /** @description a=available d=doubtful i=injured s=suspended u=unavailable n=not in squad. Only "a" is safe to start. Carried here so a flag can sit on the shirt without a second fetch (plan 030). */
+            status: string;
+            /** @description The availability note, when there is one. */
+            news: string | null;
+            /** @description FPL’s own chance of playing next round, as a percentage. Null when FPL has published none. */
+            chanceOfPlayingNextRound: number | null;
             /**
              * @description What this player should do, not what the manager currently has them doing.
              * @enum {string}
@@ -561,6 +587,117 @@ export interface components {
             /** @description Every player in the game. The list is bounded by the game itself — 612 in 2025/26 — so it is served whole rather than paged: a picker needs to filter across all of them at once. */
             count: number;
             players: components["schemas"]["PlayerListItemDto"][];
+        };
+        PlayerSeasonTotalsDto: {
+            /** @description Matches with a recorded stat row this season. */
+            appearances: number;
+            points: number;
+            minutes: number;
+            goals: number;
+            assists: number;
+            cleanSheets: number;
+            bonus: number;
+            expectedGoals: number;
+            expectedAssists: number;
+        };
+        PlayerFixtureDto: {
+            /** @example MCI */
+            opponentShortName: string;
+            /** @description True when this player’s club is the home side. */
+            isHome: boolean;
+            /** @description FPL’s fixture difficulty rating for THIS player’s club in this match, 1 (easiest) to 5. Read from the side the player is on, so a home player sees the home difficulty. */
+            difficulty: number;
+            /** @description ISO instant. Null when FPL has not scheduled the match yet. */
+            kickoffTime: string | null;
+        };
+        PlayerProjectionDto: {
+            gameweekId: number;
+            /** @description Expected points in this gameweek alone. */
+            expectedPoints: number;
+            /** @description Expected minutes in this gameweek. */
+            expectedMinutes: number;
+            /** @description P(the player features at all). */
+            playProbability: number;
+            /** @description Standard deviation of the points distribution. Null for a model version that composed none — unknown, never zero. */
+            sd: number | null;
+            /** @description P(2 points or fewer). Null when the model carried no distribution. */
+            pBlank: number | null;
+            /** @description P(10 points or more). Null when the model carried no distribution. */
+            pHaul: number | null;
+            /** @description Per-term breakdown of the expected points: appearance, goals, assists, cs, conceded, defcon, saves, bonus, fixtures. The model’s own reasoning, not a rationalisation. */
+            components: {
+                [key: string]: number;
+            };
+            /** @description The club’s fixtures in this gameweek. Empty is a blank, two is a double — both facts about the published calendar, not inferences. */
+            fixtures: components["schemas"]["PlayerFixtureDto"][];
+        };
+        PlayerRecentGameweekDto: {
+            gameweekId: number;
+            /** @example ARS */
+            opponentShortName: string;
+            wasHome: boolean;
+            minutes: number;
+            /** @description FPL points actually scored in this match. */
+            points: number;
+            goals: number;
+            assists: number;
+            cleanSheets: number;
+            bonus: number;
+            /** @description Expected goals in this match, FPL’s own figure. */
+            expectedGoals: number;
+            /** @description Expected assists in this match, FPL’s own figure. */
+            expectedAssists: number;
+        };
+        PlayerDetailDto: {
+            /** @description Our internal id (cuid). */
+            playerId: string;
+            fplId: number;
+            /** @example Haaland */
+            webName: string;
+            /** @example Erling Haaland */
+            fullName: string;
+            /** @enum {string} */
+            position: "GKP" | "DEF" | "MID" | "FWD";
+            /** @example MCI */
+            teamShortName: string;
+            /** @example Man City */
+            teamName: string;
+            /** @description Market price in tenths of a million. */
+            nowCost: number;
+            /** @description a=available d=doubtful i=injured s=suspended u=unavailable n=not in squad. Only "a" is safe to start. */
+            status: string;
+            /** @description The availability note, when there is one. */
+            news: string | null;
+            /** @description FPL’s own chance of playing next round, as a percentage. Null when FPL has published none, which is the normal state for a fit player. */
+            chanceOfPlayingNextRound: number | null;
+            /** @description FPL’s form figure: points per match over the last 30 days. Null before any match. */
+            form: number | null;
+            /** @description FPL’s points per game this season. */
+            pointsPerGame: number | null;
+            /** @description Minutes played this season, FPL’s figure. */
+            seasonMinutes: number;
+            /** @description Starts this season, FPL’s figure. */
+            seasonStarts: number;
+            /** @description 1 means first-choice penalty taker. Null when not on the list. */
+            penaltiesOrder: number | null;
+            directFreekicksOrder: number | null;
+            cornersOrder: number | null;
+            /** @description Share of FPL managers who own this player, as a percentage, from the latest ownership snapshot. Null when none has been recorded. Ownership is a fact about the crowd, never an input to the projection. */
+            selectedByPercent: number | null;
+            /** @description Price change in tenths since this app first tracked the player — NOT since the season started, which no stored row can say. Null with fewer than two price points. */
+            priceChangeSinceTracked: number | null;
+            /** @description ISO instant of the first tracked price, so the change above can be dated. */
+            priceTrackedSince: string | null;
+            /** @description Summed from the per-gameweek stat rows. Null before the player has one. */
+            seasonTotals: components["schemas"]["PlayerSeasonTotalsDto"] | null;
+            /** @description The served model version the projections below came from. Null when nothing is projected. */
+            modelVersion: string | null;
+            /** @description The gameweeks a decision can still be made for, in order — the optimizer’s horizon. */
+            horizonGameweekIds: number[];
+            /** @description One entry per horizon gameweek the served model has projected, in gameweek order. Empty when the model has not reached this player. */
+            projections: components["schemas"]["PlayerProjectionDto"][];
+            /** @description The last finished matches, newest first. Empty before the season’s first match. */
+            recent: components["schemas"]["PlayerRecentGameweekDto"][];
         };
     };
     responses: never;
@@ -983,6 +1120,50 @@ export interface operations {
                         success?: true;
                         /** @enum {string|null} */
                         errorCode?: null;
+                    };
+                };
+            };
+        };
+    };
+    PlayersController_detail: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Our internal id (cuid). */
+                playerId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The player. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiEnvelopeDto"] & {
+                        data: components["schemas"]["PlayerDetailDto"];
+                        /** @enum {boolean} */
+                        success?: true;
+                        /** @enum {string|null} */
+                        errorCode?: null;
+                    };
+                };
+            };
+            /** @description No player with that id. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiEnvelopeDto"] & {
+                        data: null | null;
+                        /** @enum {boolean} */
+                        success?: false;
+                        /** @enum {string} */
+                        errorCode?: "UNKNOWN_PLAYER";
                     };
                 };
             };

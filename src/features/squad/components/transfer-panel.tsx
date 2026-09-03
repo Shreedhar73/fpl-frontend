@@ -4,6 +4,7 @@ import { Note } from '@/components/ui/note';
 import { Stat } from '@/components/ui/stat';
 import { delta, money, points } from '@/lib/format';
 import type { PlannedMove, TransferPlan } from '../api/squad.api';
+import { PlayerTrigger } from './player-sheet/player-trigger';
 
 /**
  * What to do with the squad you already have (B-008).
@@ -140,17 +141,21 @@ function MoveRow({ move }: { move: PlannedMove }) {
     out.sellValue !== null && out.sellValue < out.nowCost;
 
   return (
-    <li className="rounded-xl border border-line bg-surface-2 p-3">
+    <li className="rounded-2xl border border-line bg-surface-2 p-3">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex min-w-0 flex-wrap items-center gap-2 text-sm">
           <PositionChip position={out.position} />
-          <span className="font-medium text-ink line-through decoration-ink-3/60">
-            {out.webName}
-          </span>
-          <span className="text-xs text-ink-3">{out.teamShortName}</span>
+          <PlayerTrigger playerId={out.playerId} name={out.webName} className="gap-1.5 hover:underline underline-offset-2">
+            <span className="font-medium text-ink line-through decoration-ink-3/60">
+              {out.webName}
+            </span>
+            <span className="text-xs text-ink-3">{out.teamShortName}</span>
+          </PlayerTrigger>
           <span className="text-ink-3">→</span>
-          <span className="font-semibold text-ink">{incoming.webName}</span>
-          <span className="text-xs text-ink-3">{incoming.teamShortName}</span>
+          <PlayerTrigger playerId={incoming.playerId} name={incoming.webName} className="gap-1.5 hover:underline underline-offset-2">
+            <span className="font-semibold text-ink">{incoming.webName}</span>
+            <span className="text-xs text-ink-3">{incoming.teamShortName}</span>
+          </PlayerTrigger>
         </div>
         <span
           className="text-sm font-semibold text-[var(--good)]"

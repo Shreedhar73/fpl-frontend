@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { cx } from '@/lib/format';
+import { statusLabel, statusTone } from '@/lib/status';
 
 export type Position = 'GKP' | 'DEF' | 'MID' | 'FWD';
 
@@ -29,7 +30,7 @@ export function PositionChip({
   return (
     <span
       className={cx(
-        'inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider',
+        'inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider',
         className,
       )}
       style={{
@@ -77,6 +78,59 @@ export function Badge({
   );
 }
 
+/**
+ * Availability, spelled out. Rendered for every status but `a`, which needs no chip; the news
+ * sits in the title so a hover or a long-press explains the flag without another line.
+ */
+export function StatusBadge({
+  status,
+  news,
+  chance,
+  className,
+}: {
+  status: string;
+  news?: string | null;
+  chance?: number | null;
+  className?: string;
+}) {
+  if (status === 'a') return null;
+  return (
+    <Badge tone={statusTone(status)} title={news ?? undefined} className={className}>
+      {statusLabel(status)}
+      {chance !== null && chance !== undefined && (
+        <span className="tabular-nums opacity-80">{chance}%</span>
+      )}
+    </Badge>
+  );
+}
+
+/**
+ * A fixture's difficulty, 1 to 5, as FPL rates it — always with the number printed, because the
+ * tone alone is a colour and colour alone is not a signal here.
+ */
+export function DifficultyChip({
+  difficulty,
+  className,
+}: {
+  difficulty: number;
+  className?: string;
+}) {
+  const tone: Tone =
+    difficulty <= 2 ? 'good' : difficulty === 3 ? 'neutral' : 'bad';
+  return (
+    <span
+      title={`Fixture difficulty ${difficulty} of 5`}
+      className={cx(
+        'inline-grid size-5 place-items-center rounded-md text-[10px] font-bold tabular-nums',
+        TONE[tone],
+        className,
+      )}
+    >
+      {difficulty}
+    </span>
+  );
+}
+
 /** A label/value pair on one line — squad value, bank, the chip in play. */
 export function FactChip({
   label,
@@ -90,7 +144,7 @@ export function FactChip({
   return (
     <span
       title={title}
-      className="inline-flex items-baseline gap-1.5 rounded-lg border border-line bg-surface-2 px-2.5 py-1"
+      className="inline-flex items-baseline gap-1.5 rounded-full border border-line bg-surface px-2.5 py-1"
     >
       <span className="text-[10px] uppercase tracking-wider text-ink-3">
         {label}

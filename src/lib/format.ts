@@ -9,6 +9,12 @@ export function money(tenths: number): string {
   return `£${(tenths / 10).toFixed(1)}m`;
 }
 
+/** A price movement in tenths, signed, the way FPL writes it: +£0.1m. */
+export function moneyDelta(tenths: number): string {
+  if (tenths === 0) return '£0.0m';
+  return `${tenths > 0 ? '+' : '−'}£${(Math.abs(tenths) / 10).toFixed(1)}m`;
+}
+
 /** Expected points. One decimal everywhere — two implied a precision the model does not have. */
 export function points(n: number): string {
   return n.toFixed(1);
@@ -18,6 +24,11 @@ export function points(n: number): string {
 export function delta(n: number): string {
   const rounded = Math.abs(n) < 0.05 ? 0 : n;
   return `${rounded > 0 ? '+' : rounded < 0 ? '−' : ''}${Math.abs(rounded).toFixed(1)}`;
+}
+
+/** A model term, signed to two decimals — the resolution the components are stored at. */
+export function term(n: number): string {
+  return `${n > 0 ? '+' : n < 0 ? '−' : ''}${Math.abs(n).toFixed(2)}`;
 }
 
 /** A probability in 0…1 as a whole percentage. */
@@ -47,10 +58,38 @@ export function localTimestamp(iso: string): string {
   }).format(d);
 }
 
+/** A kickoff as a reader says it — "Sat 5 Sep, 15:00" — in the browser's zone. Browser only. */
+export function localKickoff(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  return new Intl.DateTimeFormat(undefined, {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(d);
+}
+
+/** A date alone — "20 Aug" — in the browser's zone. Browser only. */
+export function localDate(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  return new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short' }).format(d);
+}
+
 /** The full instant, for a `title` — the short form drops the date, and a stale page needs it. */
 export function fullTimestamp(iso: string): string {
   const d = new Date(iso);
   return Number.isNaN(d.getTime()) ? iso : d.toISOString().replace('T', ' ').slice(0, 19) + ' UTC';
+}
+
+/** `clean_sheets` reads as a debug key. The model's own component names are the label, spaced out. */
+export function humanize(key: string): string {
+  return key
+    .replace(/[_-]+/g, ' ')
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .toLowerCase();
 }
 
 /** Class-name helper. Small enough to own rather than take a dependency for. */
