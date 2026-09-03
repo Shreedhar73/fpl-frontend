@@ -181,6 +181,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/insights/transfers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * What to do with a squad built by hand.
+         * @description The squad is validated first and refused if illegal. Sell values are today’s market prices (a hand-built fifteen was never bought, so that is exact by construction), the free-transfer count is the one stated, and the bank defaults to what the fifteen leaves of the budget. Chips are all unspent. The response shape is the manager route’s, with managerId null.
+         */
+        post: operations["InsightsController_transferPlanForBuilt"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/players": {
         parameters: {
             query?: never;
@@ -400,7 +420,7 @@ export interface components {
             formation: string;
             /** @description The optimal squad's formation. */
             optimalFormation: string;
-            /** @description In the optimal 15 and not in this squad. **Not a transfer recommendation** — a transfer costs money and possibly 4 points, and deciding whether one is worth it is B-008. This is the set difference and nothing more. */
+            /** @description In the optimal 15 and not in this squad. **Not a transfer recommendation** — a transfer costs money and possibly 4 points, and deciding whether one is worth it is the transfer plan (GET /insights/transfers/{managerId}, or POST /insights/transfers for a built 15). This is the set difference and nothing more. */
             optimalHasThatYouDoNot: components["schemas"]["SquadDifferenceDto"][];
             /** @description In this squad and not in the optimal 15. Same caveat. */
             youHaveThatOptimalDoesNot: components["schemas"]["SquadDifferenceDto"][];
@@ -496,10 +516,10 @@ export interface components {
             /** @description What selling returns, in tenths: purchase price plus half the rise, rounded down. Null when the purchase price could not be reconstructed at all. */
             sellValue: number | null;
             /**
-             * @description Where the purchase price came from. 'transfer-log' is exact — the manager's own element_in_cost. 'starting-gameweek-price' is exact for a player held since their first gameweek, because FPL's per-gameweek value IS the price that week. 'unknown' means the budget used the market price, which overstates it.
+             * @description Where the purchase price came from. 'transfer-log' is exact — the manager's own element_in_cost. 'starting-gameweek-price' is exact for a player held since their first gameweek, because FPL's per-gameweek value IS the price that week. 'market-price' is exact by construction: a hand-built fifteen was never bought, so every player sells for what he costs today. 'unknown' means the budget used the market price for a player who WAS bought, which overstates it.
              * @enum {string}
              */
-            sellValueSource: "transfer-log" | "starting-gameweek-price" | "unknown";
+            sellValueSource: "transfer-log" | "starting-gameweek-price" | "market-price" | "unknown";
         };
         TransferSideDto: {
             playerId: string;
@@ -530,14 +550,20 @@ export interface components {
             spent: boolean;
         };
         TransferPlanDto: {
-            managerId: number;
+            /** @description Null for a plan from a hand-built fifteen (POST /insights/transfers). */
+            managerId: number | null;
             /** @description The gameweek the plan is for — the next one. */
             gameweekId: number;
             horizonGameweekIds: number[];
             modelVersion: string;
-            /** @description Free transfers in hand, replayed from the manager's own gameweek history. FPL exposes no free-transfer count publicly. */
+            /** @description Free transfers in hand. For a manager, replayed from their own gameweek history — FPL exposes no free-transfer count publicly. For a hand-built fifteen, the number the user stated. */
             freeTransfers: number;
-            /** @description False when that replay had a gap in it, which makes the count a lower bound rather than a number. */
+            /**
+             * @description 'reconstructed' from the manager's gameweek history; 'stated' by the user for a hand-built fifteen, which nothing here can check.
+             * @enum {string}
+             */
+            freeTransfersSource: "reconstructed" | "stated";
+            /** @description False when the replay had a gap in it, which makes the count a lower bound rather than a number. Always true for a stated count: it is whatever the user said, not a bound. */
             freeTransfersReconstructed: boolean;
             /** @description Bank, in tenths of a million. */
             bank: number;
@@ -558,6 +584,17 @@ export interface components {
             chips: components["schemas"]["ChipAdviceDto"][];
             /** @description What this plan is not, in the payload rather than only in a plan file. */
             caveats: string[];
+        };
+        TransferPlanRequestDto: {
+            /** @description Our internal player ids (cuid) for the 15. */
+            playerIds: string[];
+            /**
+             * @description Free transfers in hand, as the user states them — nothing here can check the number. Capped at the bank FPL allows (5).
+             * @default 1
+             */
+            freeTransfers: number;
+            /** @description Bank in tenths of a million. Omitted, it is what the fifteen leaves of the budget at today's prices — what FPL would leave a manager who bought exactly this squad now. */
+            bank?: number;
         };
         PlayerListItemDto: {
             /** @description Our internal id (cuid) — what the squad endpoints take. */
@@ -1094,6 +1131,66 @@ export interface operations {
                         success?: false;
                         /** @enum {string} */
                         errorCode?: "SQUAD_NOT_IMPORTED";
+                    };
+                };
+            };
+        };
+    };
+    InsightsController_transferPlanForBuilt: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TransferPlanRequestDto"];
+            };
+        };
+        responses: {
+            /** @description The plan. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiEnvelopeDto"] & {
+                        data: components["schemas"]["TransferPlanDto"];
+                        /** @enum {boolean} */
+                        success?: true;
+                        /** @enum {string|null} */
+                        errorCode?: null;
+                    };
+                };
+            };
+            /** @description That squad breaks at least one rule — the message lists every one. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiEnvelopeDto"] & {
+                        data: null | null;
+                        /** @enum {boolean} */
+                        success?: false;
+                        /** @enum {string} */
+                        errorCode?: "SQUAD_ILLEGAL";
+                    };
+                };
+            };
+            /** @description One of those player ids does not exist. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiEnvelopeDto"] & {
+                        data: null | null;
+                        /** @enum {boolean} */
+                        success?: false;
+                        /** @enum {string} */
+                        errorCode?: "UNKNOWN_PLAYER";
                     };
                 };
             };

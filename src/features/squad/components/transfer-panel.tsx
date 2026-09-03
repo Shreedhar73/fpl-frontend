@@ -19,8 +19,11 @@ import { PlayerTrigger } from './player-sheet/player-trigger';
  * 1. **Where each sell value came from.** FPL publishes neither purchase nor selling price, so every
  *    one of these is reconstructed. A number reconstructed from the manager's own transfer log is
  *    exact; one that fell back to the market price overstates the budget, and the panel says which.
- * 2. **Whether the free-transfer count is complete.** It is a replay of the manager's gameweek
- *    history. A gap makes it a lower bound.
+ *    A hand-built fifteen (B-045) is the one case where market price IS exact — nobody ever bought
+ *    it — and the panel says that too rather than warning about a number that is right.
+ * 2. **Whether the free-transfer count is complete.** For a manager it is a replay of their gameweek
+ *    history, and a gap makes it a lower bound. For a hand-built fifteen it is whatever the user
+ *    said, and the panel labels it as stated.
  * 3. **That chips are windows.** A chip is unspendable once used, so the model names the gameweek the
  *    calendar argues for and stops. Most weeks the honest answer is "nothing here argues for one",
  *    and that is rendered as an answer rather than hidden as an absence.
@@ -38,10 +41,16 @@ export function TransferPanel({ plan }: { plan: TransferPlan }) {
             : `${plan.moves.length} transfer${plan.moves.length === 1 ? '' : 's'} over gameweeks ${plan.horizonGameweekIds[0]}–${plan.horizonGameweekIds[plan.horizonGameweekIds.length - 1]}, priced at what selling actually returns.`
         }
         aside={
-          <span title="Free transfers in hand, replayed from this manager's own gameweek history">
-            {plan.freeTransfers} free
-            {plan.freeTransfersReconstructed ? '' : ' (at least)'}
-          </span>
+          plan.freeTransfersSource === 'stated' ? (
+            <span title="Free transfers in hand, as you stated them — nothing here can check the number">
+              {plan.freeTransfers} free (as stated)
+            </span>
+          ) : (
+            <span title="Free transfers in hand, replayed from this manager's own gameweek history">
+              {plan.freeTransfers} free
+              {plan.freeTransfersReconstructed ? '' : ' (at least)'}
+            </span>
+          )
         }
       />
 
@@ -175,6 +184,9 @@ function MoveRow({ move }: { move: PlannedMove }) {
             {' '}
             — {money(out.nowCost)} on the market, and you keep half the rise
           </>
+        )}
+        {out.sellValueSource === 'market-price' && (
+          <> — today&apos;s market price, since this fifteen was never bought</>
         )}
         {out.sellValueSource === 'unknown' && (
           <> — reconstructed price unavailable, so the market price was used</>

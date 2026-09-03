@@ -11,11 +11,13 @@ import type { ApiResponseMeta } from '@/lib/api/types';
 import { cx, money, percent, points } from '@/lib/format';
 import {
   adviseBuiltSquad,
+  planBuiltTransfers,
   validateSquad,
   type PlayerListItem,
 } from '../api/players.api';
-import { messageFor, type Advice } from '../api/squad.api';
+import { messageFor, type Advice, type TransferPlan } from '../api/squad.api';
 import { AdvicePanel } from './advice-panel';
+import { TransferPanel } from './transfer-panel';
 import {
   PlayerSheetProvider,
   usePlayerSheet,
@@ -123,6 +125,12 @@ function Builder({
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [panelOpen, setPanelOpen] = useState(false);
+  // The transfer plan is a second, slower solve and a second question ("how many free transfers do
+  // you hold?"), so it is asked for rather than fetched with the advice.
+  const [plan, setPlan] = useState<TransferPlan | null>(null);
+  const [planBusy, setPlanBusy] = useState(false);
+  const [planError, setPlanError] = useState<string | null>(null);
+  const [freeTransfers, setFreeTransfers] = useState(1);
 
   const byId = useMemo(
     () => new Map(players.map((p) => [p.playerId, p])),
@@ -179,6 +187,8 @@ function Builder({
 
   function toggle(id: string) {
     setAdvice(null);
+    setPlan(null);
+    setPlanError(null);
     setServerIssues(null);
     setError(null);
     setPickedIds((prev) =>
@@ -194,6 +204,8 @@ function Builder({
     setBusy(true);
     setError(null);
     setServerIssues(null);
+    setPlan(null);
+    setPlanError(null);
     try {
       // Revalidated server-side even when the local check is happy, because the local check is a
       // hint: it works from a copy of the rules and from prices that could be a sync behind.
@@ -214,7 +226,58 @@ function Builder({
     }
   }
 
+  async function planTransfers() {
+    setPlanBusy(true);
+    setPlanError(null);
+    try {
+      const result = await planBuiltTransfers(pickedIds, freeTransfers);
+      setPlan(result.data);
+      // The panel renders above the comparison the control sits under, so bring it into view.
+      requestAnimationFrame(() =>
+        document
+          .getElementById('transfers')
+          ?.scrollIntoView({ behavior: 'smooth', block: 'start' }),
+      );
+    } catch (err) {
+      setPlanError(messageFor(err));
+    } finally {
+      setPlanBusy(false);
+    }
+  }
+
   if (advice) {
+    const planControl = (
+      <>
+        <label className="flex items-center gap-1.5 text-xs text-ink-2">
+          Free transfers
+          <select
+            value={freeTransfers}
+            onChange={(e) => setFreeTransfers(Number(e.target.value))}
+            aria-label="Free transfers in hand"
+            className="h-8 rounded-lg border border-line bg-surface px-2 text-xs text-ink"
+          >
+            {[1, 2, 3, 4, 5].map((n) => (
+              <option key={n} value={n}>
+                {n}
+              </option>
+            ))}
+          </select>
+        </label>
+        <button
+          type="button"
+          onClick={planTransfers}
+          disabled={planBusy}
+          className={buttonClass({ variant: 'secondary', size: 'sm' })}
+        >
+          {planBusy ? 'Planning…' : plan ? 'Plan again' : 'Plan transfers'}
+        </button>
+        <span className="text-[11px] leading-4 text-ink-3">
+          {planError ??
+            'These lists are a set difference. The plan prices the moves at what selling returns — today’s market, since this fifteen was never bought — with the free transfers you say you hold and the −4 a hit costs.'}
+        </span>
+      </>
+    );
+
     return (
       <div className="flex flex-col gap-5">
         <div className="flex flex-wrap items-start justify-between gap-2">
@@ -234,13 +297,27 @@ function Builder({
           </div>
           <button
             type="button"
-            onClick={() => setAdvice(null)}
+            onClick={() => {
+              setAdvice(null);
+              setPlan(null);
+              setPlanError(null);
+            }}
             className={buttonClass({ variant: 'secondary', size: 'sm' })}
           >
             Keep editing
           </button>
         </div>
-        <AdvicePanel advice={advice} />
+        <AdvicePanel
+          advice={advice}
+          transfers={
+            plan && (
+              <div id="transfers" className="scroll-mt-28">
+                <TransferPanel plan={plan} />
+              </div>
+            )
+          }
+          planSlot={planControl}
+        />
       </div>
     );
   }

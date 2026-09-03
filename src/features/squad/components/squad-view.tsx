@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { Badge, FactChip } from '@/components/ui/badge';
+import { buttonClass } from '@/components/ui/button';
 import { RememberTeam } from '@/components/recent-teams';
 import { Provenance } from '@/components/ui/provenance';
 import type { ApiResponseMeta } from '@/lib/api/types';
@@ -142,7 +143,32 @@ export function SquadView({
           </div>
         )}
         <div id="compare" className="scroll-mt-28">
-          <ComparisonCard advice={advice} />
+          <ComparisonCard
+            advice={advice}
+            planSlot={
+              transferPlan ? (
+                <>
+                  <a
+                    href="#transfers"
+                    className={buttonClass({ variant: 'secondary', size: 'sm' })}
+                  >
+                    See the transfer plan
+                  </a>
+                  <span className="text-[11px] leading-4 text-ink-3">
+                    These lists are a set difference. The plan above prices the
+                    moves — sell values, your free transfers, and the −4 a hit
+                    costs.
+                  </span>
+                </>
+              ) : (
+                <span className="text-[11px] leading-4 text-ink-3">
+                  The transfer plan could not be loaded — FPL did not answer, or
+                  the projections for this gameweek have not been run. Reload
+                  to try again.
+                </span>
+              )
+            }
+          />
         </div>
         {/* After the comparison and before the roster: it explains the gap the comparison just
             showed, and a reader who has not asked "why is this squad this squad" has not needed it
