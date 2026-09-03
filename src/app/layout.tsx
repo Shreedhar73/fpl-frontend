@@ -1,9 +1,32 @@
 import type { Metadata, Viewport } from "next";
+import { Suspense } from "react";
+import localFont from "next/font/local";
 import { BottomNav } from "@/components/bottom-nav";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
+import { PlayerSheetProvider } from "@/features/squad/components/player-sheet/player-sheet-context";
 import { THEME_BOOT_SCRIPT } from "@/lib/theme";
 import "./globals.css";
+
+/**
+ * Two faces, both self-hosted under `public/fonts` and loaded through `next/font/local` — never
+ * `next/font/google`, which fetches at build and dev time and 500s every page on a machine that
+ * cannot reach fonts.gstatic.com (D-008). Latin subsets only; the variable files carry the
+ * weights the app uses. The CSS variables they set are what `globals.css` puts at the front of
+ * `--font-app-sans` and `--font-app-display`.
+ */
+const body = localFont({
+  src: "../../public/fonts/instrument-sans-latin.woff2",
+  variable: "--font-body",
+  weight: "400 600",
+  display: "swap",
+});
+const display = localFont({
+  src: "../../public/fonts/archivo-latin.woff2",
+  variable: "--font-display",
+  weight: "500 800",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: {
@@ -11,7 +34,7 @@ export const metadata: Metadata = {
     template: "%s · FPL Advisor",
   },
   description:
-    "Data-driven Fantasy Premier League manager: projections, transfers and captaincy with the reasoning behind each call.",
+    "The week's Fantasy Premier League decisions for your team — captain, transfers, chips and lineup — with the projection behind each.",
 };
 
 export const viewport: Viewport = {
@@ -23,18 +46,20 @@ export const viewport: Viewport = {
 };
 
 /**
- * No `next/font/google` here on purpose. Next fetches Google Fonts at build and dev time, and a
- * machine that cannot reach fonts.gstatic.com gets a 500 on every page — the app becomes
- * unbuildable offline. The font stack is defined in globals.css. See decisions.md D-008; if a
- * custom face is wanted later, self-host it in `public/` rather than reintroducing the fetch.
- *
  * The shell is server-rendered: the header, the footer and every page inside them ship as HTML.
  * The one inline script stamps a stored theme choice on <html> before first paint, which is why
  * <html> suppresses the hydration warning for that attribute — the server cannot know the choice.
+ *
+ * The player rail's provider sits here rather than per page, so a player stays open across a tab
+ * change on the same team and the rail is reachable from every route that renders a name.
  */
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en" className="h-full antialiased" suppressHydrationWarning>
+    <html
+      lang="en"
+      className={`h-full antialiased ${body.variable} ${display.variable}`}
+      suppressHydrationWarning
+    >
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_BOOT_SCRIPT }} />
       </head>
@@ -45,12 +70,16 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         >
           Skip to content
         </a>
-        <SiteHeader />
-        <div id="main" className="flex flex-1 flex-col">
-          {children}
-        </div>
-        <SiteFooter />
-        <BottomNav />
+        <PlayerSheetProvider>
+          <SiteHeader />
+          <div id="main" className="flex flex-1 flex-col">
+            {children}
+          </div>
+          <SiteFooter />
+          <Suspense fallback={null}>
+            <BottomNav />
+          </Suspense>
+        </PlayerSheetProvider>
       </body>
     </html>
   );

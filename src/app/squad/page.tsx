@@ -1,11 +1,8 @@
 import { redirect } from 'next/navigation';
 
 /**
- * The landing form's GET target. It exists only to turn `?managerId=7` into `/squad/7`, so the
- * form can be plain HTML and the squad itself gets a real, linkable URL.
- *
- * A bad or missing id goes back to the landing page rather than to an error: there is nothing to
- * explain, the number simply was not one.
+ * The entry form's GET target. It turns `?managerId=7` into `/team/7`, so the form is plain HTML
+ * and the board gets a real, linkable URL. A bad or missing id goes back to the entry page.
  */
 export default async function SquadRedirect({
   searchParams,
@@ -14,7 +11,6 @@ export default async function SquadRedirect({
 }) {
   const { managerId } = await searchParams;
   const id = Number(managerId);
-
   if (!managerId || !Number.isInteger(id) || id < 1) redirect('/');
-  redirect(`/squad/${id}`);
+  redirect(`/team/${id}`);
 }

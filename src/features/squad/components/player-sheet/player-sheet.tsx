@@ -34,24 +34,41 @@ import { usePlayerSheet, type SheetState } from './player-sheet-context';
  * model has not reached gets the facts and an honest "no projection", never a row of zeros.
  */
 export function PlayerSheet() {
-  const { openId, state, close } = usePlayerSheet();
+  const { openId, vsId, state, vsState, close } = usePlayerSheet();
   const ref = useRef<HTMLDialogElement>(null);
 
+  // From `lg` the rail is NON-modal — `show()`, no backdrop — so the board beside it stays
+  // tappable and "Compare with…" can take its second player from a shirt. Below that it is a
+  // modal sheet as before: focus trapped, Escape and the backdrop close it.
   useEffect(() => {
     const dialog = ref.current;
     if (!dialog) return;
+    const rail = window.matchMedia('(min-width: 1024px)').matches;
     if (openId && !dialog.open) {
-      dialog.showModal();
-      document.body.style.overflow = 'hidden';
+      if (rail) dialog.show();
+      else {
+        dialog.showModal();
+        document.body.style.overflow = 'hidden';
+      }
     } else if (!openId && dialog.open) {
       dialog.close();
     }
   }, [openId]);
 
+  // A non-modal dialog does not close on Escape by itself.
+  useEffect(() => {
+    if (!openId) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') close();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [openId, close]);
+
   return (
     <dialog
       ref={ref}
-      className="sheet"
+      className={cx('sheet', vsId && 'sheet-wide')}
       aria-labelledby="player-sheet-title"
       onClose={() => {
         document.body.style.overflow = '';
@@ -62,13 +79,14 @@ export function PlayerSheet() {
         if (e.target === e.currentTarget) e.currentTarget.close();
       }}
     >
-      {openId && state && <SheetBody state={state} />}
+      {openId && state && <SheetBody state={state} vsState={vsId ? vsState : null} />}
     </dialog>
   );
 }
 
-function SheetBody({ state }: { state: SheetState }) {
-  const { close, retry } = usePlayerSheet();
+function SheetBody({ state, vsState }: { state: SheetState; vsState: SheetState | null }) {
+  const { close, retry, armed, armCompare, clearCompare } = usePlayerSheet();
+  const comparing = vsState !== null;
 
   return (
     <div className="flex max-h-[inherit] flex-col">
@@ -76,14 +94,49 @@ function SheetBody({ state }: { state: SheetState }) {
         <span aria-hidden className="mx-auto mt-2 block h-1 w-10 rounded-full bg-line-strong" />
       </div>
 
-      {state.status === 'loading' && <Skeleton onClose={close} />}
+      {/* The compare bar: on, the next tap anywhere on the board lands beside this player. */}
+      <div className="flex items-center gap-2 border-b border-line px-5 py-2 text-xs">
+        <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-ink-3">
+          {comparing ? 'Comparing' : armed ? 'Tap another player' : 'One player'}
+        </span>
+        <span className="flex-1" />
+        {comparing ? (
+          <button type="button" onClick={clearCompare} className={buttonClass({ variant: 'secondary', size: 'sm' })}>
+            Stop comparing
+          </button>
+        ) : (
+          <button type="button" onClick={armed ? clearCompare : armCompare} className={buttonClass({ variant: armed ? 'primary' : 'secondary', size: 'sm' })}>
+            {armed ? 'Cancel' : 'Compare with…'}
+          </button>
+        )}
+        <CloseButton onClick={close} />
+      </div>
+
+      {comparing ? (
+        <div className="grid min-h-0 flex-1 grid-cols-1 gap-0 overflow-y-auto overscroll-contain lg:grid-cols-2 lg:divide-x lg:divide-line">
+          <Column state={state} retry={retry} primary />
+          <Column state={vsState} retry={retry} />
+        </div>
+      ) : (
+        <Column state={state} retry={retry} primary />
+      )}
+    </div>
+  );
+}
+
+/** One player's column. The primary carries the dialog's accessible name. */
+function Column({ state, retry, primary = false }: { state: SheetState; retry: () => void; primary?: boolean }) {
+  const { close } = usePlayerSheet();
+  return (
+    <div className="flex min-h-0 flex-col">
+
+      {state.status === 'loading' && <Skeleton primary={primary} />}
       {state.status === 'error' && (
         <div className="p-5">
           <header className="flex items-start justify-between gap-3">
-            <h2 id="player-sheet-title" className="text-lg font-semibold text-ink">
+            <h2 id={primary ? 'player-sheet-title' : undefined} className="text-lg font-semibold text-ink">
               Could not load this player
             </h2>
-            <CloseButton onClick={close} />
           </header>
           <p className="mt-2 text-sm leading-6 text-ink-2">{state.message}</p>
           <div className="mt-4 flex gap-2">
@@ -101,7 +154,7 @@ function SheetBody({ state }: { state: SheetState }) {
         </div>
       )}
       {state.status === 'ready' && (
-        <Detail detail={state.detail} meta={state.meta} onClose={close} />
+        <Detail detail={state.detail} meta={state.meta} primary={primary} />
       )}
     </div>
   );
@@ -122,7 +175,7 @@ function CloseButton({ onClick }: { onClick: () => void }) {
   );
 }
 
-function Skeleton({ onClose }: { onClose: () => void }) {
+function Skeleton({ primary }: { primary: boolean }) {
   return (
     <div className="p-5" aria-busy>
       <header className="flex items-start justify-between gap-3">
@@ -130,7 +183,6 @@ function Skeleton({ onClose }: { onClose: () => void }) {
           <div className="h-6 w-40 rounded-lg bg-surface-3" />
           <div className="mt-2 h-3 w-56 rounded bg-surface-2" />
         </div>
-        <CloseButton onClick={onClose} />
       </header>
       <div className="mt-5 grid grid-cols-4 gap-2 animate-pulse">
         <div className="h-16 rounded-2xl bg-surface-2" />
@@ -143,9 +195,11 @@ function Skeleton({ onClose }: { onClose: () => void }) {
       <p className="sr-only" role="status">
         Loading player
       </p>
-      <h2 id="player-sheet-title" className="sr-only">
-        Loading player
-      </h2>
+      {primary && (
+        <h2 id="player-sheet-title" className="sr-only">
+          Loading player
+        </h2>
+      )}
     </div>
   );
 }
@@ -170,11 +224,11 @@ function termLabel(key: string): string {
 function Detail({
   detail: d,
   meta,
-  onClose,
+  primary,
 }: {
   detail: PlayerDetail;
   meta: ApiResponseMeta | null;
-  onClose: () => void;
+  primary: boolean;
 }) {
   const scroller = useRef<HTMLDivElement>(null);
   // A second player opened into the same dialog inherits the first one's scroll position otherwise.
@@ -192,8 +246,8 @@ function Detail({
           <div className="flex flex-wrap items-center gap-2">
             <PositionChip position={d.position} />
             <h2
-              id="player-sheet-title"
-              className="truncate text-xl font-semibold tracking-tight text-ink"
+              id={primary ? 'player-sheet-title' : undefined}
+              className="num truncate text-[22px] font-extrabold tracking-tight text-ink"
             >
               {d.webName}
             </h2>
@@ -208,7 +262,6 @@ function Detail({
             {d.teamName} · <span className="tabular-nums">{money(d.nowCost)}</span>
           </p>
         </div>
-        <CloseButton onClick={onClose} />
       </header>
 
       <div ref={scroller} className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pb-6">
