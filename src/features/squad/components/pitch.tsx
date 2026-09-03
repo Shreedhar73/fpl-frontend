@@ -159,14 +159,11 @@ export function Pitch({ squad, advice }: { squad: Squad; advice?: Advice }) {
         <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-ink-3">
           Bench · in the order they come on
         </h3>
-        <div className="flex flex-wrap gap-2 sm:gap-3">
-          {bench.map((p, i) => (
-            <div key={p.playerId} className="flex items-center gap-1.5">
-              <span className="grid size-5 place-items-center rounded-full border border-line-strong text-[10px] font-semibold tabular-nums text-ink-3">
-                {i + 1}
-              </span>
-              <Shirt pick={p} facts={facts.get(p.playerId)} />
-            </div>
+        {/* Left to right IS the substitution order; a number beside each shirt said the same
+            thing again and cost a shirt's width of room on a phone. */}
+        <div className="flex flex-wrap gap-1.5 sm:gap-3">
+          {bench.map((p) => (
+            <Shirt key={p.playerId} pick={p} facts={facts.get(p.playerId)} />
           ))}
         </div>
       </div>
