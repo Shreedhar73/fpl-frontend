@@ -38,16 +38,31 @@ Things a fresh read of the code will not tell you, and that are expensive to get
   (`lsof -nP -i :4000`) before assuming an application error — the message Next prints does not name
   the holder.
 - **The JS budget is feature JS: the route total minus the framework floor.** The floor is 172.9 KB
-  gzipped (`fpl-performance-budget`), the budget above it is 30 KB. On 2026-09-03, with the player
-  sheet, the theme toggle and the bottom navigation on every route, the routes measured 3.4 KB (`/`),
-  10.0 KB (`/squad/recommended` and `/squad/<id>`) and 16.8 KB (`/squad/build`). A charting library
-  would spend the lot on its own; the bars and meters here are `div`s.
-- **Tapping a player anywhere opens the player sheet** (plan 030): `PlayerSheetProvider` is mounted
-  once per view, `PlayerTrigger` is the client leaf that wraps server-rendered markup, and the sheet
-  fetches `GET /api/players/{id}` on open through `getPlayerDetail` with a per-page `Map` cache. No
-  TanStack Query — it is not installed, and the cache is the right size for one fetch per tap. A new
-  place that shows a player's name wraps it in `PlayerTrigger`; outside a provider the trigger renders
-  its children unwrapped.
+  gzipped (`fpl-performance-budget`), the budget above it is 30 KB. On 2026-09-03, after plan 032,
+  with the player rail, the team switcher, the countdown and the bottom navigation on every route,
+  the routes measured 12.6 KB (`/`), 13.3 KB (`/team/<id>`), 13.5 KB (`/plan`), 15.0 KB (`/squad`),
+  13.0 KB (`/model`) and 16.3 KB (`/build`). A charting library would spend the lot on its own; the
+  bars and tickers here are `div`s.
+- **One team, four route tabs, three sources** (plan 032): `app/team/[id]/{page,plan,squad,model}`
+  serve an imported squad (`/team/7912139`), the model's 15 (`/team/recommended`) and a hand-built 15
+  (`/team/built?ids=…&ft=…`) through one loader, `features/board/load-team.ts`, memoised per request
+  with React `cache` so the layout and the page share one set of fetches. `resolveSource` decides
+  which of the three a segment is; anything else is `notFound()` before any fetch. The old
+  `/squad/*` routes redirect from `next.config.ts`; `/squad?managerId=` stays as the entry form's GET
+  target. Every board number is the payload's — the only client-side arithmetic is in
+  `lib/horizon.ts` (the picked XI, the lineup-only gap from `role` against `slot`, a greedy best XI
+  per horizon gameweek) and it says so where it is shown.
+- **Tapping a player anywhere opens the player rail** (plans 030 and 032): `PlayerSheetProvider` is
+  mounted once in the root layout, `PlayerTrigger` is the client leaf that wraps server-rendered
+  markup, and the rail fetches `GET /api/players/{id}` on open through `getPlayerDetail` with a
+  per-session `Map` cache. From `lg` the dialog is non-modal (`show()`), so the board stays tappable
+  and "Compare with…" takes its second player from any shirt; the open pair is mirrored into
+  `?player=&vs=` with `replaceState`. No TanStack Query — it is not installed. A new place that shows
+  a player's name wraps it in `PlayerTrigger`; outside a provider the trigger renders its children
+  unwrapped.
+- **Type is self-hosted** (D-008): Archivo for numerals and headings, Instrument Sans for the rest,
+  latin woff2 under `public/fonts` through `next/font/local`. Never `next/font/google`. The `.num`
+  utility is the display face with tabular figures.
 - **The colour scheme has three states**, not two: nothing stored (follow the system), `light`, `dark`.
   An inline script in `layout.tsx` stamps `data-theme` before first paint, so `<html>` carries
   `suppressHydrationWarning`, and the dark tokens in `globals.css` are declared twice — under the

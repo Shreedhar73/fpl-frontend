@@ -77,6 +77,9 @@ export function PlayerSheetProvider({ children }: { children: ReactNode }) {
   const [openId, setOpenId] = useState<string | null>(null);
   const [vsId, setVsId] = useState<string | null>(null);
   const [armed, setArmed] = useState(false);
+  // Read by `open` so the decision is made once per call, not inside a state updater — an updater
+  // runs twice under StrictMode, and a fetch inside it would too.
+  const armedRef = useRef(false);
   const [state, setState] = useState<SheetState | null>(null);
   const [vsState, setVsState] = useState<SheetState | null>(null);
   const cache = useRef(new Map<string, WithMeta<PlayerDetail>>());
@@ -104,24 +107,25 @@ export function PlayerSheetProvider({ children }: { children: ReactNode }) {
 
   const open = useCallback(
     (playerId: string) => {
-      setArmed((wasArmed) => {
-        if (wasArmed && openId && playerId !== openId) {
-          setVsId(playerId);
-          writeUrl(openId, playerId);
-          void load(playerId, 'vs');
-        } else {
-          setOpenId(playerId);
-          writeUrl(playerId, vsId);
-          void load(playerId, 'primary');
-        }
-        return false;
-      });
+      const wasArmed = armedRef.current;
+      armedRef.current = false;
+      setArmed(false);
+      if (wasArmed && openId && playerId !== openId) {
+        setVsId(playerId);
+        writeUrl(openId, playerId);
+        void load(playerId, 'vs');
+      } else {
+        setOpenId(playerId);
+        writeUrl(playerId, vsId);
+        void load(playerId, 'primary');
+      }
     },
     [load, openId, vsId],
   );
 
   const compare = useCallback(
     (playerId: string, vs: string) => {
+      armedRef.current = false;
       setArmed(false);
       setOpenId(playerId);
       setVsId(vs);
@@ -132,12 +136,16 @@ export function PlayerSheetProvider({ children }: { children: ReactNode }) {
     [load],
   );
 
-  const armCompare = useCallback(() => setArmed(true), []);
+  const armCompare = useCallback(() => {
+    armedRef.current = true;
+    setArmed(true);
+  }, []);
 
   const clearCompare = useCallback(() => {
     seq.current.vs++;
     setVsId(null);
     setVsState(null);
+    armedRef.current = false;
     setArmed(false);
     writeUrl(openId, null);
   }, [openId]);
@@ -147,6 +155,7 @@ export function PlayerSheetProvider({ children }: { children: ReactNode }) {
     seq.current.vs++;
     setOpenId(null);
     setVsId(null);
+    armedRef.current = false;
     setArmed(false);
     setState(null);
     setVsState(null);

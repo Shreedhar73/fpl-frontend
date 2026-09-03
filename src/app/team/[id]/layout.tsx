@@ -1,6 +1,7 @@
+import { notFound } from 'next/navigation';
 import { RememberTeam } from '@/components/recent-teams';
 import { BoardError } from '@/features/board/components/board-error';
-import { loadTeam, type TeamData } from '@/features/board/load-team';
+import { loadTeam, resolveSource, type TeamData } from '@/features/board/load-team';
 
 /**
  * Everything the four tabs share: the load (memoised, so the page underneath pays nothing extra),
@@ -12,6 +13,9 @@ export default async function TeamLayout({
   params,
 }: LayoutProps<'/team/[id]'>) {
   const { id } = await params;
+  // A segment that is not a team id, `recommended` or `built` is a 404 with the team-id copy, not
+  // a fetch that fails and blames the backend.
+  if (id !== 'built' && resolveSource(id, {}) === null) notFound();
   let team: TeamData;
   try {
     // The query is read by the page (layouts do not receive searchParams); the loader keys on it.
